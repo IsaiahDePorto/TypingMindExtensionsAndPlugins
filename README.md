@@ -1,1 +1,4 @@
 # TypingMindExtensions
+Authors:
+ChatGPT,
+Gemini
