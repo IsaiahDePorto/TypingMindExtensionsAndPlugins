@@ -1,24 +1,44 @@
-# TypingMind Development Context for Jules
+# TypingMind Developer Instructions for Jules
 
-This repository contains TypingMind extensions and plugins. Use the following documentation and reference links to ensure all code adheres to the latest TypingMind standards and API schemas.
+This repository is dedicated to building and maintaining TypingMind Extensions and Plugins. Jules must use the following context to ensure code compatibility and architectural alignment.
 
-## Core Documentation
-- **Extensions Guide:** https://docs.typingmind.com/typingmind-extensions
-- **Plugins Development:** https://docs.typingmind.com/plugins/build-a-typingmind-plugin
-- **Main Documentation:** https://docs.typingmind.com
-
-## Technical References & Schemas
+## 1. Documentation & Research Links
+- **Official Extension Docs:** https://docs.typingmind.com/typingmind-extensions
+- **Plugin Dev Guide:** https://docs.typingmind.com/plugins/build-a-typingmind-plugin
 - **Plugin JSON Schema:** https://docs.typingmind.com/plugins/typingmind-plugin-json-schema
-- **Interactive Canvas (Artifacts) Spec:** https://github.com/TypingMind/plugin-interactive-canvas/blob/main/plugin.json
-- **Official Examples Repo:** https://github.com/TypingMind/awesome-typingmind
+- **Interactive Canvas Spec:** https://github.com/TypingMind/plugin-interactive-canvas/blob/main/plugin.json
 
-## Extension Implementation Guidelines
-1. **Sandboxing:** All JavaScript logic for extensions runs in the browser context. Ensure code is compatible with modern browser APIs.
-2. **Accessing App Data:** Use the `typingmind` global object for interacting with the UI and chat data where applicable.
-3. **Plugin Implementation:** 
-   - Prefer **JavaScript** implementation for client-side logic.
-   - For server-side needs, reference the self-hosted server model: https://github.com/TypingMind/plugins-server
-4. **Interactive Canvas:** When generating HTML for the Interactive Canvas (Artifacts), ensure the output is a self-contained string that can be rendered within an iframe.
+## 2. Core Architectural Distinction
+Jules must determine the task type before proposing a plan:
 
-## Research Task for Jules
-If a task involves a feature not fully detailed in the repository, use your internet access to research the specific section of the TypingMind Docs related to that feature (e.g., "Permissions & Resources Access" or "Custom Output Options").
+### A. TypingMind Extensions (Browser-Side JS)
+- **Purpose:** UI/UX modifications, chat monitoring, or internal app logic.
+- **Environment:** Runs directly in the browser. 
+- **Key Patterns (See `Example extensions.txt`):**
+    - **UI Injection:** Use `MutationObserver` to wait for DOM elements (e.g., `[role="menu"]` or `[data-element-id="workspace-bar"]`).
+    - **Persistence:** Use `localStorage` for configuration settings.
+    - **Data Access:** Access chat history via IndexedDB (Database: `keyval-store`, Store: `keyval`, Keys: `CHAT_ID`).
+    - **API Hooking:** Override `window.fetch` to intercept or modify outgoing model requests/responses.
+
+### B. TypingMind Plugins (Function Calling)
+- **Purpose:** External tool access (Google Search, Python, CSV generation).
+- **Format:** Requires a JSON manifest following the OpenAI Function Calling spec.
+- **Implementation Types (See `Plugin JSON Examples.txt`):**
+    - **HTTP Action:** Direct API calls (REST/GET/POST). Use `{variable}` syntax for user settings.
+    - **JavaScript:** Custom logic running in a secure sandbox.
+- **Output Types:** Must be one of `respond_to_ai`, `render_markdown`, or `render_html` (for Interactive Canvas).
+
+## 3. Implementation Rules & Safety
+- **UI Consistency:** When adding buttons to the workspace bar, use `data-element-id="workspace-tab-[name]"` and follow the Tailwind-like class patterns found in "Example 3" (Export All/Chat).
+- **Interactive Canvas:** Always provide a `htmlSource` string. Ensure the HTML includes necessary CSS/JS within the string for self-contained rendering.
+- **Libraries:** If an extension requires an external library (like JSZip), implement a `loadLibrary()` function that injects a `<script>` tag into `document.head`.
+
+## 4. Grounding Examples
+Jules should reference these specific files in the repository to understand the expected coding style:
+- Refer to `Example extensions.txt` for: DOM manipulation, `MutationObserver` usage, and `window.fetch` interception.
+- Refer to `Plugin JSON Examples (1).txt` for: Correct JSON manifest structure and `openaiSpec` definitions.
+
+## 5. Research Instructions
+Before generating a new plugin or extension, Jules should:
+1. Use the internet to check the **TypingMind Changelog** or **Docs** for any new `data-element-id` or API changes.
+2. Verify if the requested feature requires a **Plugin Server** (Node.js) or can be done entirely in the browser (Extension).
