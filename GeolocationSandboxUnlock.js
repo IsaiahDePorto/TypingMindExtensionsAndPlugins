@@ -21,17 +21,24 @@
     // 2. Watch for iframes added via innerHTML (The "Safety Net")
     const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
-            mutation.addedNodes.forEach((node) => {
+            for (const node of mutation.addedNodes) {
                 if (node.nodeType === 1) { // Element node
-                    const iframes = node.tagName === 'IFRAME' ? [node] : node.querySelectorAll('iframe');
-                    iframes.forEach(iframe => {
-                        if (!iframe.getAttribute('allow')?.includes(PERMISSION_STRING)) {
-                            const currentAllow = iframe.getAttribute('allow') || "";
-                            iframe.setAttribute('allow', currentAllow ? `${currentAllow}; ${PERMISSION_STRING}` : PERMISSION_STRING);
+                    if (node.tagName === 'IFRAME') {
+                        if (!node.getAttribute('allow')?.includes(PERMISSION_STRING)) {
+                            const currentAllow = node.getAttribute('allow') || "";
+                            node.setAttribute('allow', currentAllow ? `${currentAllow}; ${PERMISSION_STRING}` : PERMISSION_STRING);
                         }
-                    });
+                    } else if (node.hasChildNodes()) {
+                        const iframes = node.getElementsByTagName('iframe');
+                        for (const iframe of iframes) {
+                            if (!iframe.getAttribute('allow')?.includes(PERMISSION_STRING)) {
+                                const currentAllow = iframe.getAttribute('allow') || "";
+                                iframe.setAttribute('allow', currentAllow ? `${currentAllow}; ${PERMISSION_STRING}` : PERMISSION_STRING);
+                            }
+                        }
+                    }
                 }
-            });
+            }
         }
     });
 
