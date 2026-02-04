@@ -46,8 +46,10 @@
 
     // UI INJECTION
     function injectUI() {
+        if (document.getElementById('tm-gemini-res-container')) return;
+
         const actionBar = document.querySelector('[data-element-id="chat-input-actions"]');
-        if (!actionBar || document.getElementById('tm-gemini-res-container')) return;
+        if (!actionBar) return;
 
         const container = document.createElement('div');
         container.id = 'tm-gemini-res-container';
@@ -79,5 +81,7 @@
         actionBar.prepend(container);
     }
 
-    setInterval(injectUI, 2000);
+    injectUI();
+    const observer = new MutationObserver(() => injectUI());
+    observer.observe(document.body, { childList: true, subtree: true });
 })();
