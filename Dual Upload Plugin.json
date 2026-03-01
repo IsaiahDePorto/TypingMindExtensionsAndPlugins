@@ -1,0 +1,71 @@
+{
+  "id": "dual_upload_memory_drive",
+  "uuid": "dual_upload_memory_drive",
+  "emoji": "📤",
+  "title": "Dual Upload Plugin",
+  "iconURL": "https://www.memoryplugin.com/icon-white-bg.png",
+  "syncedAt": null,
+  "createdAt": null,
+  "deletedAt": null,
+  "githubURL": null,
+  "oauthConfig": null,
+  "permissions": [],
+  "userSettings": [
+    {
+      "name": "token",
+      "type": "password",
+      "label": "MemoryPlugin Auth Token",
+      "required": true,
+      "description": "Get your auth token from memoryplugin.com/dashboard."
+    },
+    {
+      "name": "googleDriveToken",
+      "type": "password",
+      "label": "Google Drive OAuth Access Token",
+      "required": true,
+      "description": "Your Google Drive OAuth access token with write permissions."
+    }
+  ],
+  "pluginFunctions": [
+    {
+      "id": "dual_upload",
+      "code": "async function dual_upload({ text, bucketId, folderId, fileName }, userSettings) {\n  if (!userSettings.token || !userSettings.googleDriveToken) {\n    return 'ERROR: Please set both MemoryPlugin auth token and Google Drive OAuth token in the plugin settings.';\n  }\n\n  const MP_API = 'https://www.memoryplugin.com/api/';\n  \n  const today = new Date();\n  let memoryText = text;\n  if (today.getFullYear() > 2023 && !text.match(/^\\d{4}-\\d{2}-\\d{2}/)) {\n    const dateStr = today.toISOString().split('T')[0];\n    memoryText = dateStr + '\\n\\n' + text;\n  }\n  \n  const memoryBody = { text: memoryText };\n  if (bucketId) memoryBody.bucketId = bucketId;\n  \n  const memoryPromise = fetch(MP_API + 'v2/memory?client=typingmind', {\n    method: 'POST',\n    headers: {\n      'Authorization': 'Bearer ' + userSettings.token,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify(memoryBody)\n  }).then(async res => {\n    if (!res.ok) {\n      const err = await res.json().catch(() => ({}));\n      throw new Error('Error storing memory: ' + (err.error || res.statusText));\n    }\n    return res.json();\n  });\n\n  const finalFileName = fileName || 'Untitled.md';\n  const metadata = {\n    name: finalFileName,\n    mimeType: 'text/markdown'\n  };\n  if (folderId) {\n    metadata.parents = [folderId];\n  }\n\n  const boundary = '-------314159265358979323846';\n  const delimiter = \"\\r\\n--\" + boundary + \"\\r\\n\";\n  const close_delim = \"\\r\\n--\" + boundary + \"--\";\n\n  const multipartRequestBody = \n    delimiter +\n    'Content-Type: application/json\\r\\n\\r\\n' +\n    JSON.stringify(metadata) +\n    delimiter +\n    'Content-Type: text/markdown\\r\\n\\r\\n' +\n    text +\n    close_delim;\n\n  const drivePromise = fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {\n    method: 'POST',\n    headers: {\n      'Authorization': 'Bearer ' + userSettings.googleDriveToken,\n      'Content-Type': 'multipart/related; boundary=' + boundary\n    },\n    body: multipartRequestBody\n  }).then(async res => {\n    if (!res.ok) {\n      const err = await res.json().catch(() => ({}));\n      throw new Error('Error uploading to Drive: ' + (err.error && err.error.message ? err.error.message : res.statusText));\n    }\n    return res.json();\n  });\n\n  try {\n    const [memoryRes, driveRes] = await Promise.all([memoryPromise, drivePromise]);\n    const memoryMsg = memoryRes.isDuplicate ? 'Duplicate memory (already exists)' : 'Memory stored successfully';\n    return `Success!\\n- Memory: ${memoryMsg}\\n- Drive: File \"${finalFileName}\" uploaded successfully.`;\n  } catch (error) {\n    return `Upload Failed: ${error.message}`;\n  }\n}",
+      "name": "dual_upload",
+      "openaiSpec": {
+        "name": "dual_upload",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "text",
+            "folderId"
+          ],
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "REQUIRED. The full text content to store in memory and upload as a file to Google Drive. Keep the markdown format intact."
+            },
+            "folderId": {
+              "type": "string",
+              "description": "REQUIRED. The Google Drive folder ID where the file should be uploaded."
+            },
+            "fileName": {
+              "type": "string",
+              "description": "Optional: The name of the file to create in Google Drive (e.g. 'notes.md'). Defaults to 'Untitled.md' if not provided."
+            },
+            "bucketId": {
+              "type": "number",
+              "description": "Optional: MemoryPlugin bucket ID to organize this memory."
+            }
+          }
+        },
+        "description": "DO NOT USE THIS PLUGIN UNLESS EXPLICITLY INSTRUCTED BY THE SYSTEM OR USER PROMPT. If instructions mention uploading to memory and drive without naming this plugin, use other plugins first. \n\nUploads a single block of text simultaneously to MemoryPlugin (as a memory) and Google Drive (as a markdown file) in a single action. Specify the text, Drive folder ID, and optional Drive file name and Memory bucket ID."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    }
+  ],
+  "overviewMarkdown": "## Dual Upload Plugin\n\nThis plugin allows you to upload text simultaneously to MemoryPlugin and a specified Google Drive folder in a single step.\n\n### Usage\n\nDO NOT use this plugin unless explicitly requested. If the prompt does not specifically ask for \"Dual Upload Plugin\", use the regular Memory or Drive plugins instead.",
+  "authenticationType": "AUTH_TYPE_NONE",
+  "dynamicContextEndpoints": [],
+  "sharedOAuthConnectionID": null
+}
