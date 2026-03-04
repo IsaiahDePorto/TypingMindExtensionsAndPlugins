@@ -85,8 +85,8 @@
         // Optimization: check if chat was updated today.
         // If not, messages couldn't have been sent today (unless system clock changed, but we assume standard behavior)
         // Check updatedAt if available
-        let updatedTime = new Date(chat.updatedAt).getTime();
-        if (isNaN(updatedTime)) updatedTime = new Date(chat.createdAt).getTime(); // Fallback
+        let updatedTime = typeof chat.updatedAt === 'number' ? chat.updatedAt : new Date(chat.updatedAt).getTime();
+        if (isNaN(updatedTime)) updatedTime = typeof chat.createdAt === 'number' ? chat.createdAt : new Date(chat.createdAt).getTime(); // Fallback
 
         if (updatedTime < startOfDay) continue;
 
@@ -96,7 +96,9 @@
             let msgTime = message.createdAt || message.timestamp;
             if (!msgTime) continue; // Skip if no time
 
-            if (new Date(msgTime).getTime() >= startOfDay) {
+            const msgTimestamp = typeof msgTime === 'number' ? msgTime : new Date(msgTime).getTime();
+
+            if (msgTimestamp >= startOfDay) {
                 // Check cost
                 if (message.tokenUsage && typeof message.tokenUsage === 'object') {
                     if (message.tokenUsage.cost) {
