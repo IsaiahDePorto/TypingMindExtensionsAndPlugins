@@ -1,0 +1,70 @@
+{
+  "id": "perplexity_search_worker_complete",
+  "uuid": "f96b062f-5026-46d4-9932-c5c3a56808ed",
+  "emoji": "🌐",
+  "title": "Perplexity Search",
+  "syncedAt": "2026-01-29T01:32:57.000Z",
+  "createdAt": "2026-01-29T01:03:55.473Z",
+  "deletedAt": null,
+  "userSettings": [
+    {
+      "name": "worker_url",
+      "label": "Your Cloudflare Worker URL",
+      "required": true,
+      "description": "The URL of the Cloudflare Worker you created.",
+      "placeholder": "https://your-proxy.workers.dev"
+    },
+    {
+      "name": "perplexity_api_key",
+      "type": "password",
+      "label": "Perplexity API Key",
+      "required": true
+    },
+    {
+      "name": "Max_Results",
+      "label": "Max Results",
+      "required": true,
+      "defaultValue": "10"
+    },
+    {
+      "name": "max_tokens",
+      "label": "Max Tokens",
+      "required": true,
+      "description": "Total token budget for the search operation.",
+      "defaultValue": "25000"
+    },
+    {
+      "name": "max_tokens_per_page",
+      "label": "Max Tokens Per Page",
+      "required": true,
+      "description": "Max tokens per individual webpage.",
+      "defaultValue": "2048"
+    }
+  ],
+  "pluginFunctions": [
+    {
+      "id": "813db24f-65c0-44d6-b9fc-f2212eb743f4",
+      "code": "async function perplexity_search({ query }, userSettings) {\n  const response = await fetch(userSettings.worker_url, {\n    method: 'POST',\n    headers: {\n      'Authorization': 'Bearer ' + userSettings.perplexity_api_key,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({\n      query: query,\n      maxResults: parseInt(userSettings.Max_Results) || 10,\n      max_tokens: parseInt(userSettings.max_tokens) || 25000,\n      maxTokensPerPage: parseInt(userSettings.max_tokens_per_page) || 2048\n    })\n  });\n  \n  if (!response.ok) {\n    const err = await response.text();\n    throw new Error(`Worker Error: ${response.status} - ${err}`);\n  }\n  \n  return await response.json();\n}",
+      "name": "perplexity_search",
+      "openaiSpec": {
+        "name": "perplexity_search",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "query"
+          ],
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The search query."
+            }
+          }
+        },
+        "description": "Search the internet using Perplexity Search via a Cloudflare Worker proxy."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    }
+  ],
+  "authenticationType": "AUTH_TYPE_NONE"
+}
