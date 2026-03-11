@@ -1,52 +1,19 @@
 from fastapi import FastAPI, HTTPException, Header, Request, Response
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 from typing import Optional
 
 app = FastAPI()
 
-@app.middleware("http")
-async def custom_cors_middleware(request: Request, call_next):
-    # Handle preflight options manually
-    if request.method == "OPTIONS":
-        origin = request.headers.get("origin")
-        allow_origin = origin if origin else "*"
-        return JSONResponse(
-            status_code=200,
-            content="OK",
-            headers={
-                "Access-Control-Allow-Origin": allow_origin,
-                "Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Credentials": "true",
-            }
-        )
-
-    try:
-        response = await call_next(request)
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            response = JSONResponse(
-                status_code=e.status_code,
-                content={"detail": e.detail}
-            )
-        else:
-            response = JSONResponse(
-                status_code=500,
-                content={"detail": str(e)}
-            )
-
-    origin = request.headers.get("origin")
-    if origin:
-        response.headers["Access-Control-Allow-Origin"] = origin
-    else:
-        response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "POST, GET, OPTIONS, PUT, DELETE"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-
-    return response
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class FileRequest(BaseModel):
     file_url: str
