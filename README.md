@@ -56,4 +56,4 @@ This extension is a utility designed to provide a text-to-speech mechanism using
 The script injects a small text-to-speech icon near the "copy" button on AI messages. Once a valid Google Cloud API key is provided, the script uses it to send the message text to the text-to-speech API and play the generated audio in the browser.
 
 Installation link:
-*https://cdn.jsdelivr.net/gh/IsaiahDePorto/TypingMindExtensions@refs/heads/main/GeminiTTSV5.js*
+*https://cdn.jsdelivr.net/gh/IsaiahDePorto/TypingMindExtensions@refs/heads/main/GeminiTTSV6.js*
