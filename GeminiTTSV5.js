@@ -62,20 +62,75 @@
 
     // NEW SMART SEARCH: Find the message text nearest to this button
     function getMessageText(btn) {
-        // 1. Try to find the common TM message containers
-        let container = btn.closest('[data-element-id="chat-message"]') || 
-                        btn.closest('.message-row') || 
-                        btn.parentElement.parentElement;
-        
-        // 2. Look for the AI message div specifically
-        let textNode = container.querySelector('[data-element-id="ai-message"]') || 
-                       container.querySelector('.prose') ||
-                       container.querySelector('.message-content');
+        let aiMessage = null;
+        let current = btn;
+        let levels = 0;
 
-        // 3. FALLBACK: If we still can't find it, just grab the text of the 
-        // entire container but strip out the action bar buttons.
-        let target = textNode || container;
-        let cleanText = target.innerText
+        // Traverse up the DOM, checking the current node and its siblings
+        while (current && current !== document.body && levels < 6) {
+            // Check current node
+            if (current.matches && current.matches('[data-element-id="ai-message"], .prose')) {
+                aiMessage = current;
+                break;
+            }
+
+            // Check previous siblings and their children
+            let sibling = current.previousElementSibling;
+            while (sibling) {
+                if (sibling.matches && sibling.matches('[data-element-id="ai-message"], .prose')) {
+                    aiMessage = sibling;
+                    break;
+                }
+                let found = sibling.querySelector && sibling.querySelector('[data-element-id="ai-message"], .prose');
+                if (found) {
+                    aiMessage = found;
+                    break;
+                }
+                sibling = sibling.previousElementSibling;
+            }
+            if (aiMessage) break;
+
+            // Check next siblings and their children
+            sibling = current.nextElementSibling;
+            while (sibling) {
+                if (sibling.matches && sibling.matches('[data-element-id="ai-message"], .prose')) {
+                    aiMessage = sibling;
+                    break;
+                }
+                let found = sibling.querySelector && sibling.querySelector('[data-element-id="ai-message"], .prose');
+                if (found) {
+                    aiMessage = found;
+                    break;
+                }
+                sibling = sibling.nextElementSibling;
+            }
+            if (aiMessage) break;
+
+            // Check if the current node contains the target, but isn't the button itself
+            let found = current.querySelector && current.querySelector('[data-element-id="ai-message"], .prose');
+            if (found && found !== btn && !found.contains(btn)) {
+                aiMessage = found;
+                break;
+            }
+
+            current = current.parentElement;
+            levels++;
+        }
+
+        // Fallback to old behavior if traversal fails
+        let target = aiMessage;
+        if (!target) {
+            let container = btn.closest('[data-element-id="chat-message"]') ||
+                            btn.closest('.message-row') ||
+                            btn.parentElement.parentElement;
+
+            target = container ? (container.querySelector('[data-element-id="ai-message"]') ||
+                                 container.querySelector('.prose') ||
+                                 container.querySelector('.message-content') ||
+                                 container) : btn.parentElement;
+        }
+
+        let cleanText = (target.innerText || target.textContent || "")
             .replace(/Copy|Edit|Play|Regenerate|Pin|Delete|Fork|Show raw/g, '') // Strip common button text
             .replace(/\d{1,2}:\d{2}/g, '') // Strip timestamps
             .trim();
@@ -98,7 +153,7 @@
             btn.onclick = (e) => {
                 e.preventDefault(); e.stopPropagation();
                 const text = getMessageText(btn);
-                if (text && text.length > 3) {
+                if (text && text.length > 0) {
                     synthesizeSpeech(text);
                 } else {
                     updateStatus('Text not found', '#e74c3c');
