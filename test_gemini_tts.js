@@ -60,7 +60,7 @@ class MockMutationObserver {
 global.MutationObserver = MockMutationObserver;
 
 // Load and execute the extension
-const code = fs.readFileSync('GeminiTTSV7.js', 'utf8');
+const code = fs.readFileSync('GeminiTTSV8.js', 'utf8');
 
 try {
     eval(code);
