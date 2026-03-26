@@ -1,23 +1,28 @@
 (function () {
     const STORAGE_KEY = 'tm_extension_google_tts_key';
     const VOICE_NAME = 'en-US-Studio-O'; 
+    let debugTag;
     
     // Create Clickable Status Bar
-    const debugTag = document.createElement('div');
-    debugTag.id = 'gemini-tts-status';
-    debugTag.innerHTML = 'Gemini TTS: Tap to Set API Key';
-    debugTag.style.cssText = 'position:fixed; top:0; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:white; font-size:11px; padding:4px 12px; z-index:9999; border-radius:0 0 10px 10px; font-family:sans-serif; cursor:pointer; font-weight:bold;';
-    document.body.appendChild(debugTag);
+    function initUI() {
+        if (document.getElementById('gemini-tts-status')) return;
+        debugTag = document.createElement('div');
+        debugTag.id = 'gemini-tts-status';
+        debugTag.innerHTML = 'Gemini TTS: Tap to Set API Key';
+        debugTag.style.cssText = 'position:fixed; top:0; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.7); color:white; font-size:11px; padding:4px 12px; z-index:9999; border-radius:0 0 10px 10px; font-family:sans-serif; cursor:pointer; font-weight:bold;';
+        document.body.appendChild(debugTag);
 
-    debugTag.onclick = () => {
-        const key = prompt("Enter Google Cloud API Key:", localStorage.getItem(STORAGE_KEY) || "");
-        if (key) {
-            localStorage.setItem(STORAGE_KEY, key);
-            updateStatus('Key Saved! Ready.', '#2ecc71');
-        }
-    };
+        debugTag.onclick = () => {
+            const key = prompt("Enter Google Cloud API Key:", localStorage.getItem(STORAGE_KEY) || "");
+            if (key) {
+                localStorage.setItem(STORAGE_KEY, key);
+                updateStatus('Key Saved! Ready.', '#2ecc71');
+            }
+        };
+    }
 
     function updateStatus(text, color = 'rgba(0,0,0,0.7)') {
+        if (!debugTag) return;
         debugTag.innerHTML = 'Gemini TTS: ' + text;
         debugTag.style.background = color;
     }
@@ -104,5 +109,45 @@
         });
     }
 
-    setInterval(inject, 1000);
+    function debounce(func, wait) {
+        let timeout;
+        return function(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    }
+
+    const debouncedInject = debounce(inject, 200);
+
+    function init() {
+        initUI();
+        debouncedInject();
+
+        const observer = new MutationObserver((mutations) => {
+            let shouldInject = false;
+            for (const mutation of mutations) {
+                if (mutation.addedNodes.length > 0) {
+                    shouldInject = true;
+                    break;
+                }
+            }
+            if (shouldInject) {
+                debouncedInject();
+            }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    if (document.body) {
+        init();
+    } else {
+        const tempObserver = new MutationObserver(() => {
+            if (document.body) {
+                tempObserver.disconnect();
+                init();
+            }
+        });
+        tempObserver.observe(document.documentElement, { childList: true, subtree: true });
+    }
 })();
