@@ -1,6 +1,7 @@
 (function () {
-    const STORAGE_KEY = 'tm_extension_google_tts_key';
-    const VOICE_NAME = 'en-US-Studio-O'; 
+    const STORAGE_KEY = 'tm_extension_gemini_tts_key';
+    const VOICE_NAME = 'Puck';
+    const MODEL_NAME = 'gemini-2.5-flash-lite-preview-tts';
     let debugTag;
     
     // Create Clickable Status Bar
@@ -13,7 +14,7 @@
         document.body.appendChild(debugTag);
 
         debugTag.onclick = () => {
-            const key = prompt("Enter Google Cloud API Key:", localStorage.getItem(STORAGE_KEY) || "");
+            const key = prompt("Enter Gemini API Key:", localStorage.getItem(STORAGE_KEY) || "");
             if (key) {
                 localStorage.setItem(STORAGE_KEY, key);
                 updateStatus('Key Saved! Ready.', '#2ecc71');
@@ -36,19 +37,41 @@
 
         updateStatus('Generating...', '#f39c12');
         try {
-            const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`, {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    input: { text: text },
-                    voice: { languageCode: "en-US", name: VOICE_NAME },
-                    audioConfig: { audioEncoding: "MP3" }
+                    contents: [{
+                        parts: [{ text: text }]
+                    }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: {
+                                prebuiltVoiceConfig: {
+                                    voiceName: VOICE_NAME
+                                }
+                            }
+                        }
+                    }
                 })
             });
             const data = await response.json();
-            if (data.audioContent) {
+
+            let audioPart = null;
+            if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
+                audioPart = data.candidates[0].content.parts.find(p => p.inlineData && p.inlineData.mimeType && p.inlineData.mimeType.startsWith('audio'));
+                // Fallback if mimeType is missing but inlineData exists
+                if (!audioPart) {
+                   audioPart = data.candidates[0].content.parts.find(p => p.inlineData && p.inlineData.data);
+                }
+            }
+
+            if (audioPart && audioPart.inlineData) {
+                const audioData = audioPart.inlineData.data;
+                const mimeType = audioPart.inlineData.mimeType || "audio/mp3";
                 updateStatus('Playing...', '#2ecc71');
-                const audio = new Audio("data:audio/mp3;base64," + data.audioContent);
+                const audio = new Audio(`data:${mimeType};base64,${audioData}`);
                 audio.onended = () => updateStatus('Ready');
                 audio.play();
             } else {
