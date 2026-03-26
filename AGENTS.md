@@ -42,3 +42,10 @@ Jules should reference these specific files in the repository to understand the 
 Before generating a new plugin or extension, Jules should:
 1. Use the internet to check the **TypingMind Changelog** or **Docs** for any new `data-element-id` or API changes.
 2. Verify if the requested feature requires a **Plugin Server** (Node.js) or can be done entirely in the browser (Extension).
+
+## 6. Extension Versioning
+When editing an existing **Extension** (browser-side JS), you must always increase the version count at the end of the file name (e.g., `ExtensionV2.js` to `ExtensionV3.js`).
+- If the file does not currently have a version number (e.g., `Extension.js`), you must add one (e.g., `ExtensionV2.js`).
+- After renaming the extension file, you **must** update the corresponding installation link in `README.md` to match the new file name.
+- This is required because TypingMind caches extensions based on the URL. Changing the file name and URL ensures the user receives the updated code.
+- **Note:** This versioning requirement applies *only* to Extensions, not Plugins.
