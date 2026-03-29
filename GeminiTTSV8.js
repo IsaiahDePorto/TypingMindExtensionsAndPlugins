@@ -1,7 +1,7 @@
 (function () {
     const STORAGE_KEY = 'tm_extension_gemini_tts_key';
     const VOICE_NAME = 'Puck';
-    const MODEL_NAME = 'gemini-2.5-flash-lite-preview-tts';
+    const MODEL_NAME = 'gemini-2.5-flash-preview-tts';
     let debugTag;
     
     // Create Clickable Status Bar
