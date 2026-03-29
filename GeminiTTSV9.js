@@ -1,7 +1,7 @@
 (function () {
     const STORAGE_KEY = 'tm_extension_gemini_tts_key';
     const VOICE_NAME = 'Puck';
-    const MODEL_NAME = 'gemini-2.5-flash-preview-tts';
+    const MODEL_NAME = 'models/gemini-2.5-flash';
     let debugTag;
     
     // Create Clickable Status Bar
@@ -28,6 +28,59 @@
         debugTag.style.background = color;
     }
 
+    // --- Audio Streaming State ---
+    let audioCtx = null;
+    let nextStartTime = 0;
+    let ws = null;
+
+    function cleanup(resetStatus = true) {
+        if (ws) {
+            ws.close();
+            ws = null;
+        }
+        if (audioCtx) {
+            audioCtx.close().catch(console.error);
+            audioCtx = null;
+        }
+        if (resetStatus) {
+            updateStatus('Ready');
+        }
+    }
+
+    // Convert base64 to Float32Array
+    function base64ToFloat32Array(base64) {
+        const binaryString = atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        // Data is Int16 PCM (little-endian)
+        const int16View = new Int16Array(bytes.buffer);
+        const float32Array = new Float32Array(int16View.length);
+        for (let i = 0; i < int16View.length; i++) {
+            float32Array[i] = int16View[i] / 32768.0;
+        }
+        return float32Array;
+    }
+
+    function scheduleAudioChunk(float32Array) {
+        if (!audioCtx) return;
+        const audioBuffer = audioCtx.createBuffer(1, float32Array.length, 24000);
+        audioBuffer.copyToChannel(float32Array, 0);
+
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+
+        const currentTime = audioCtx.currentTime;
+        // Schedule next segment. Add a tiny buffer (0.01) if we are falling behind to avoid clipping
+        nextStartTime = Math.max(nextStartTime, currentTime + 0.01);
+
+        source.start(nextStartTime);
+        nextStartTime += audioBuffer.duration;
+    }
+
     async function synthesizeSpeech(text) {
         const apiKey = localStorage.getItem(STORAGE_KEY);
         if (!apiKey) {
@@ -35,15 +88,30 @@
             return;
         }
 
-        updateStatus('Generating...', '#f39c12');
+        if (ws) {
+            cleanup();
+        }
+
+        updateStatus('Connecting...', '#f39c12');
+
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+        nextStartTime = audioCtx.currentTime;
+
+        const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+
         try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{
-                        parts: [{ text: text }]
-                    }],
+            ws = new WebSocket(url);
+        } catch (e) {
+            updateStatus('Network Error', '#e74c3c');
+            return;
+        }
+
+        ws.onopen = () => {
+            updateStatus('Generating...', '#f39c12');
+            ws.send(JSON.stringify({
+                setup: {
+                    model: MODEL_NAME,
+                    systemInstruction: { parts: [{ text: "You are a text-to-speech engine. Your only job is to read the exact text provided by the user aloud, with no additions, conversational filler, or modifications." }] },
                     generationConfig: {
                         responseModalities: ["AUDIO"],
                         speechConfig: {
@@ -54,33 +122,62 @@
                             }
                         }
                     }
-                })
-            });
-            const data = await response.json();
-
-            let audioPart = null;
-            if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
-                audioPart = data.candidates[0].content.parts.find(p => p.inlineData && p.inlineData.mimeType && p.inlineData.mimeType.startsWith('audio'));
-                // Fallback if mimeType is missing but inlineData exists
-                if (!audioPart) {
-                   audioPart = data.candidates[0].content.parts.find(p => p.inlineData && p.inlineData.data);
                 }
+            }));
+        };
+
+        ws.onmessage = (event) => {
+            let msg;
+            try {
+                // If it's a Blob, we'd need to convert it, but typically JSON is string
+                msg = JSON.parse(event.data);
+            } catch (e) {
+                // Ignore parsing errors for unexpected formats, could be raw blob
+                return;
             }
 
-            if (audioPart && audioPart.inlineData) {
-                const audioData = audioPart.inlineData.data;
-                const mimeType = audioPart.inlineData.mimeType || "audio/mp3";
+            if (msg.setupComplete) {
                 updateStatus('Playing...', '#2ecc71');
-                const audio = new Audio(`data:${mimeType};base64,${audioData}`);
-                audio.onended = () => updateStatus('Ready');
-                audio.play();
-            } else {
-                updateStatus('Error', '#e74c3c');
-                alert("API Error: " + (data.error ? data.error.message : "Check your key/quota."));
+                ws.send(JSON.stringify({
+                    clientContent: {
+                        turns: [{ role: "user", parts: [{ text: text }] }],
+                        turnComplete: true
+                    }
+                }));
+            } else if (msg.serverContent) {
+                if (msg.serverContent.modelTurn && msg.serverContent.modelTurn.parts) {
+                    msg.serverContent.modelTurn.parts.forEach(part => {
+                        if (part.inlineData && part.inlineData.data) {
+                            const float32Array = base64ToFloat32Array(part.inlineData.data);
+                            scheduleAudioChunk(float32Array);
+                        }
+                    });
+                }
+
+                if (msg.serverContent.turnComplete) {
+                    // Start a polling loop to check when the audio actually finishes playing
+                    const checkInterval = setInterval(() => {
+                        if (!audioCtx || audioCtx.currentTime >= nextStartTime) {
+                            clearInterval(checkInterval);
+                            cleanup();
+                        }
+                    }, 500);
+                }
+            } else if (msg.error) {
+                 updateStatus('Error', '#e74c3c');
+                 alert("API Error: " + msg.error.message);
+                 cleanup(false);
             }
-        } catch (e) {
-            updateStatus('Network Error', '#e74c3c');
-        }
+        };
+
+        ws.onerror = (error) => {
+            updateStatus('WebSocket Error', '#e74c3c');
+            cleanup(false);
+        };
+
+        ws.onclose = () => {
+            // we handle the visual reset in cleanup/turnComplete
+        };
     }
 
     // NEW SMART SEARCH: Find the message text nearest to this button
