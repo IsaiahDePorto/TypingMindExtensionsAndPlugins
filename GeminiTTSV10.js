@@ -126,13 +126,18 @@
             }));
         };
 
-        ws.onmessage = (event) => {
+        ws.onmessage = async (event) => {
             let msg;
             try {
-                // If it's a Blob, we'd need to convert it, but typically JSON is string
-                msg = JSON.parse(event.data);
+                let textData = event.data;
+                if (event.data instanceof Blob) {
+                    textData = await event.data.text();
+                } else if (event.data instanceof ArrayBuffer) {
+                    textData = new TextDecoder().decode(event.data);
+                }
+                msg = JSON.parse(textData);
             } catch (e) {
-                // Ignore parsing errors for unexpected formats, could be raw blob
+                console.error("Gemini TTS Parse Error:", e);
                 return;
             }
 
