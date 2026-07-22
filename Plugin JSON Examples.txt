@@ -1,0 +1,1439 @@
+{
+  "uuid": "51bb73c9-9a33-46f0-ba3e-07094b5a3d95",
+  "id": "get_web_search_results",
+  "emoji": "🔍",
+  "iconURL": "https://raw.githubusercontent.com/TypingMind/plugin-web-search/refs/heads/main/google.webp",
+  "title": "Google Search",
+  "userSettings": [
+    {
+      "name": "searchEngineID",
+      "label": "Search Engine ID",
+      "required": true
+    },
+    {
+      "name": "searchEngineAPIKey",
+      "label": "Search Engine API Key",
+      "type": "password",
+      "required": true
+    }
+  ],
+  "openaiSpec": {
+    "name": "get_web_search_results",
+    "description": "Search the web using Google search engine for real-time information about any topic. Use this tool when you need up-to-date information that might not be available in your training data, or when you need to verify current facts. The search results will include relevant snippets and URLs from web pages. This is particularly useful for questions about current events, technology updates, or any topic that requires recent information.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "keyword": {
+          "type": "string",
+          "description": "The search keyword"
+        },
+        "explanation": {
+          "type": "string",
+          "description": "One sentence explanation as to why this tool is being used, and how it contributes to the goal."
+        }
+      },
+      "required": ["keyword"]
+    }
+  },
+  "httpAction": {
+    "id": "03544138-b83c-426f-b157-636e87907aae",
+    "method": "GET",
+    "name": "",
+    "url": "https://customsearch.googleapis.com/customsearch/v1?q={keyword}&cx={searchEngineID}&key={searchEngineAPIKey}",
+    "resultTransform": {
+      "engine": "jmes",
+      "expression": "items[*].{Title: title, Result: snippet, Link: link}"
+    },
+    "hasResultTransform": true
+  },
+  "implementationType": "javascript",
+  "outputType": "respond_to_ai"
+}
+
+
+
+
+
+
+
+
+
+  {
+    "id": "render_web_app",
+    "uuid": "af76c947-6deb-435e-8338-a712c8b36eb0",
+    "emoji": "🔨",
+    "iconURL": "https://raw.githubusercontent.com/TypingMind/plugin-web-app-builder/refs/heads/main/icon.svg",
+    "title": "Web App Builder",
+    "openaiSpec": {
+      "name": "render_web_app",
+      "parameters": {
+        "type": "object",
+        "required": [
+          "htmlSource"
+        ],
+        "properties": {
+          "htmlSource": {
+            "type": "string",
+            "description": "The HTML source to render to the canvas."
+          }
+        }
+      },
+      "description": "Render an interactive web app with HTML/CSS/JS source to the user interface. The HTML source can include JavaScript and CSS to create interactive elements. This can be used to create custom user interfaces, games, demos, charts, simple web apps, and more. Use this plugin when the user ask to create a web app, a interactive demo, a game, or some other types of interactive content."
+    },
+    "implementationType": "javascript",
+    "outputType": "render_html"
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+    "id": "generate_excel_file",
+    "uuid": "6b522118-b0d1-4357-9b06-3c54a98e28d9",
+    "emoji": "🧩",
+    "title": "Excel Generator",
+    "system": false,
+    "iconURL": "https://custom.typingmind.com/assets/plugins/microsoft-excel.webp",
+    "disabled": false,
+    "syncedAt": null,
+    "httpAction": {
+        "id": "1958d5ef-feb1-458a-8bc2-8f77870de439",
+        "url": "{pluginServer}/excel-generator/generate",
+        "name": "",
+        "method": "POST",
+        "hasBody": true,
+        "hasHeaders": true,
+        "requestBody": "\n{\n    \"sheetsData\": {sheetsData},\n    \"excelConfigs\": {\n       \"fontFamily\": \"{fontFamily}\",\n       \"fontSize\": {fontSize},\n       \"headerFontSize\": {headerFontSize},\n       \"tableTitleFontSize\": {tableTitleFontSize},\n       \"borderStyle\": \"{borderStyle}\",\n       \"autoFitColumnWidth\": {autoFitColumnWidth},\n       \"autoFilter\": {autoFilter},\n       \"wrapText\": {wrapText}      \n   }\n}",
+        "requestHeaders": "{\n      \"Content-Type\": \"application/json\"\n}"
+    },
+    "openaiSpec": {
+        "name": "generate_excel_file",
+        "parameters": {
+            "type": "object",
+            "required": [
+                "sheetsData"
+            ],
+            "properties": {
+                "sheetsData": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "sheetName",
+                            "tables"
+                        ],
+                        "properties": {
+                            "tables": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": [
+                                        "startCell",
+                                        "columns",
+                                        "rows"
+                                    ],
+                                    "properties": {
+                                        "rows": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "object",
+                                                    "required": [
+                                                        "type",
+                                                        "value"
+                                                    ],
+                                                    "properties": {
+                                                        "type": {
+                                                            "enum": [
+                                                                "static_value",
+                                                                "formula"
+                                                            ],
+                                                            "type": "string",
+                                                            "description": "Indicates whether the cell contains a static value or a formula."
+                                                        },
+                                                        "value": {
+                                                            "type": "string",
+                                                            "description": "The actual value or formula for the cell. If a formula, do not start with '='. Ensure that any cell ranges used in the formula must not include the header row and title row. For example, if the table starts at A1 with a title in row 1 and header in row 2, a valid formula would be 'SUM(A3:A10)'. When referencing another sheet, include the sheet name followed by an exclamation mark, and use single quotes around the sheet name if it contains spaces. For example, use 'Sheet 2'!A1:B2 to reference a range in a sheet with spaces in its name. If 'type' is 'static_value', do not include percent or currency signs as these are defined in the column format. Avoid creating circular references where a formula directly or indirectly references its own cell."
+                                                        }
+                                                    },
+                                                    "description": "Each cell in a row contains a type ('static_value' or 'formula') and its corresponding value."
+                                                },
+                                                "description": "Each row is an array of cells. The number of cells in each row must equal the defined columns length, and all rows must have the same length."
+                                            },
+                                            "description": "Array of rows in the table, where each row is an array of cells."
+                                        },
+                                        "title": {
+                                            "type": "string",
+                                            "example": "Q1 Sales Data",
+                                            "description": "The title of the table, which will be displayed in the first row."
+                                        },
+                                        "columns": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "required": [
+                                                    "name",
+                                                    "type"
+                                                ],
+                                                "properties": {
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "Product Name",
+                                                        "description": "The name of the column."
+                                                    },
+                                                    "type": {
+                                                        "enum": [
+                                                            "string",
+                                                            "number",
+                                                            "boolean",
+                                                            "percent",
+                                                            "currency",
+                                                            "date"
+                                                        ],
+                                                        "type": "string",
+                                                        "example": "string",
+                                                        "description": "The data type of the column."
+                                                    },
+                                                    "format": {
+                                                        "type": "string",
+                                                        "example": "$#,##0",
+                                                        "description": "The format of the column (e.g., '0.00%', '$#,##0', etc.)."
+                                                    }
+                                                }
+                                            },
+                                            "description": "The list of columns in the table, each with a name, type, and optional format."
+                                        },
+                                        "startCell": {
+                                            "type": "string",
+                                            "example": "A1",
+                                            "description": "The starting cell (e.g., 'A1') where the table will begin."
+                                        },
+                                        "skipHeader": {
+                                            "type": "boolean",
+                                            "example": false,
+                                            "description": "Whether to skip the header row for this table."
+                                        }
+                                    }
+                                },
+                                "description": "The tables to include in the sheet."
+                            },
+                            "sheetName": {
+                                "type": "string",
+                                "example": "Sales Data",
+                                "description": "The name of the sheet to be created in the Excel file."
+                            }
+                        }
+                    },
+                    "description": "An array of sheet data, where each sheet contains a name and an array of tables to generate."
+                }
+            }
+        },
+        "description": "Generate an Excel file (.xlsx) and return the URL for downloading it. If the download URL is not present in the response, inform the user that the Excel file could not be generated. Prompt the user to verify that the correct plugin server URL is being used."
+    },
+    "outputType": "respond_to_ai",
+    "oauthConfig": null,
+    "userSettings": [
+        {
+            "name": "pluginServer",
+            "label": "Plugin Server",
+            "required": true,
+            "description": "The URL of the plugin server. For more details, refer to the documentation: https://docs.typingmind.com/plugins/plugins-server",
+            "placeholder": "https://...."
+        },
+        {
+            "name": "fontFamily",
+            "type": "enum",
+            "label": "Font Family",
+            "values": [
+                "Calibri",
+                "Arial",
+                "Courier New",
+                "Georgia",
+                "Helvetica",
+                "Impact",
+                "Lucida Console",
+                "Tahoma",
+                "Times New Roman",
+                "Trebuchet MS",
+                "Verdana",
+                "Comic Sans MS",
+                "Franklin Gothic Medium",
+                "Century Gothic",
+                "Gill Sans",
+                "Garamond",
+                "Palatino Linotype",
+                "Segoe UI",
+                "Book Antiqua",
+                "Symbol",
+                "Monospace",
+                "Webdings",
+                "Wingdings"
+            ],
+            "default": "Calibri",
+            "description": "Select the font family for the Excel file. The default is Calibri."
+        },
+        {
+            "name": "fontSize",
+            "type": "number",
+            "label": "Font Size",
+            "description": "Specify the font size for the Excel file. The default is 11 pt.",
+            "placeholder": "11"
+        },
+        {
+            "name": "headerFontSize",
+            "type": "number",
+            "label": "Header Font Size",
+            "description": "Set the font size for table headers in the Excel file. The default is 11 pt.",
+            "placeholder": "11"
+        },
+        {
+            "name": "tableTitleFontSize",
+            "type": "number",
+            "label": "Table Title Font Size",
+            "description": "Set the font size for the titles of each table in the Excel file. The default is 13 pt.",
+            "placeholder": "13"
+        },
+        {
+            "name": "borderStyle",
+            "type": "enum",
+            "label": "Border Style",
+            "values": [
+                "none",
+                "thin",
+                "double",
+                "dashed",
+                "thick"
+            ],
+            "default": "none",
+            "description": "Choose the border style for tables in the Excel file. The default is 'none.'"
+        },
+        {
+            "name": "autoFitColumnWidth",
+            "type": "enum",
+            "label": "Enable Auto Fit Column Width",
+            "values": [
+                "true",
+                "false"
+            ],
+            "description": "Enable or disable automatic adjustment of column widths to fit the content. The default is 'true.'"
+        },
+        {
+            "name": "autoFilter",
+            "type": "enum",
+            "label": "Enable Auto Filter",
+            "values": [
+                "false",
+                "true"
+            ],
+            "description": "Enable or disable the auto filter option for table headers. The default is 'false.'"
+        },
+        {
+            "name": "wrapText",
+            "type": "enum",
+            "label": "Enable Wrap Text",
+            "values": [
+                "false",
+                "true"
+            ],
+            "description": "Enable or disable text wrapping for the entire workbook. The default is 'false.'"
+        }
+    ],
+    "overviewMarkdown": "# **Excel Generator**\n\nThis plugin enables users to generate Excel files (.xlsx) quickly and efficiently.\n\n### 🎯 **It Supports**\n- **Multiple Sheets:** Create and organize data across multiple sheets in a single workbook.\n- **Multiple Tables per Sheet:** Add multiple tables with independent configurations to each sheet.\n- **Formula Columns:** Define and apply formulas using Excel's syntax (e.g., `=SUM(A1:A10)`).\n- **Auto Filtering Mode**: Enable or disable automatic filtering on table columns.\n- **Customizable Headers:** Option to include or skip headers for tables, ensuring flexibility in design.\n- **Dynamic Cell Range:** Specify starting cells for tables to ensure accurate placement.\n- Ability to **customize basic excel attributes**  \n    - Choose font family.\n    - Adjust font size for text, table titles, and headers.\n    - Set border styles (thin, double, dashed, thick).\n    - Enable options for column width fitting, auto filtering, and text wrapping.\n\n### 📝 **Note:** \n- A plugin server must be set up to use this feature. Follow the detailed guide to set up a plugin server on Render: [How to Deploy Plugins Server on Render](https://docs.typingmind.com/plugins/plugins-server/how-to-deploy-plugins-server-on-render)\n- The generated Excel files will be automatically removed after one hour.\n- The plugin currently does not support adding graphs or embedding images in Excel files.\n\n## **Example Usage**  \n>Please generate an Excel file for a gradebook. The gradebook should include the following columns:\n> 1. Student Name\n> 2. Student ID\n> 3. Assignment 1 Score\n> 4. Assignment 2 Score\n> 5. Midterm Exam Score\n> 6. Final Exam Score\n> 7. Total Score (calculated as the weighted average of assignments, midterm, and final exam)\n> 8. Letter Grade (based on total score)\n>\n>The total score should be calculated with the following weights:\n> * Assignments: 40% (20% for Assignment 1 and 20% for Assignment 2)\n> * Midterm Exam: 30%\n> * Final Exam: 30%\n>\n>The letter grade should be assigned based on the total score:\n>* A: 90% or higher\n>* B: 80%–89%\n>* C: 70%–79%\n>* D: 60%–69%\n>* F: Below 60%",
+    "authenticationType": "AUTH_TYPE_NONE",
+    "implementationType": "http"
+}
+  
+  
+  
+  
+{
+  "id": "68584c72-fea2-4c1b-b52f-95cd399ebbb6",
+  "uuid": "68584c72-fea2-4c1b-b52f-95cd399ebbb6",
+  "title": "Deep Research",
+  "iconURL": "https://raw.githubusercontent.com/TypingMind/plugin-deep-research/refs/heads/main/icon.png",
+  "oauthConfig": null,
+  "userSettings": [
+    {
+      "name": "serpAPIKey",
+      "type": "password",
+      "label": "Serp API Key",
+      "required": true,
+      "description": "Serp API is used for the Web Search tool. Sign up from serpapi.com to get an API key."
+    },
+    {
+      "name": "firecrawlApiKey",
+      "type": "password",
+      "label": "Firecrawl API Key",
+      "required": true,
+      "description": "Firecrawl API is used for the Read Web Page tool. Get your API key at https://www.firecrawl.dev/app/api-keys"
+    },
+    {
+      "name": "researchMode",
+      "type": "enum",
+      "label": "Research Mode",
+      "values": [
+        "Lightweight mode",
+        "Comprehensive mode",
+        "Dynamic mode"
+      ],
+      "description": "Select \"Comprehensive mode\" if you prefer to have more accurate result (consume more tokens). Default: \"Lightweight mode\".",
+      "defaultValue": "Lightweight mode"
+    }
+  ],
+  "pluginFunctions": [
+    {
+      "id": "2836fff3-19fe-49ae-894e-3f07ebe73b8e",
+      "code": "function update_research_plan() {\n  // This tool does not yet have internal state, returning an acknowledgement is usually enough for LLMs to register and keep track of the todo items. May not work well with less-intelligent models or lists that are too long.\n  return \"Plan updated successfully.\"\n}",
+      "name": "Research Plan",
+      "openaiSpec": {
+        "name": "update_research_plan",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "todos"
+          ],
+          "properties": {
+            "todos": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "content",
+                  "status",
+                  "id"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique identifier for the TODO item"
+                  },
+                  "status": {
+                    "enum": [
+                      "pending",
+                      "in_progress",
+                      "completed",
+                      "cancelled"
+                    ],
+                    "type": "string",
+                    "description": "The current status of the TODO item"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "The description/content of the TODO item"
+                  }
+                }
+              },
+              "minItems": 2,
+              "description": "Array of TODO items to write to the workspace to create or update the todo list. If the ID of the todos already exists, they will be merged into the existing todos based on the id field, you can leave unchanged properties undefined."
+            },
+            "explanation": {
+              "type": "string",
+              "description": "A short description of the action you take (e.g., \"Creating a plan...\", \"Started item X\",...)"
+            }
+          }
+        },
+        "description": "Use this tool to create and manage a structured task list for your current research session. This helps track progress, organize complex investigations, and demonstrate thoroughness.\n\n### When to Use This Tool\n\nUse proactively for:\n1. Complex multi-step research (3+ distinct phases)\n2. Non-trivial investigations requiring careful planning\n3. User explicitly requests research todo list\n4. User provides multiple research topics (numbered/comma-separated)\n5. After receiving new research instructions - capture requirements as todos (use merge=false to add new ones)\n6. After completing research phases - mark complete with merge=true and add follow-ups\n7. When starting new research areas - mark as in_progress (ideally only one at a time)\n\n### When NOT to Use\n\nSkip for:\n1. Single, straightforward questions\n2. Trivial lookups with no organizational benefit\n3. Research completable in < 3 trivial steps\n4. Purely conversational/clarification requests\n5. Don't add a task to verify findings unless asked, or you'll overfocus on validation\n\n### Examples\n\n<example>\n  User: Research the impact of climate change on Arctic wildlife\n  Assistant: *Creates todo list:*\n  1. Analyze temperature trends in Arctic regions\n  2. Identify key Arctic species and habitats\n  3. Review scientific studies on wildlife impacts\n  4. Synthesize findings and correlations\n<reasoning>\n  Multi-phase research with dependencies requiring systematic investigation.\n</reasoning>\n</example>\n\n<example>\n  User: Compare healthcare systems across Nordic countries\n  Assistant: *Creates todo list with specific items for each country's system, funding models, outcomes, and comparative analysis*\n\n<reasoning>\n  Complex comparative research requiring systematic tracking across multiple systems.\n</reasoning>\n</example>\n\n<example>\n  User: Investigate renewable energy adoption, economic impacts, policy frameworks, and future projections.\n  Assistant: *Creates todo list breaking down each research area into specific investigation tasks*\n\n<reasoning>\n  Multiple complex research areas provided as list requiring organized investigation management.\n</reasoning>\n</example>\n\n<example>\n  User: Research why my company's market share is declining - analyze competitors, market trends, customer feedback.\n  Assistant: *Creates todo list: 1) Competitor analysis, 2) Market trend research, 3) Customer sentiment analysis, 4) Internal factor review, 5) Strategic recommendations*\n\n<reasoning>\n  Business analysis requires multiple research phases across different data sources.\n</reasoning>\n</example>\n\n### Examples of When NOT to Use the Todo List\n\n<example>\n  User: What's the capital of France?\n  Assistant: The capital of France is Paris.\n\n<reasoning>\n  Single trivial factual lookup completed in one step.\n</reasoning>\n</example>\n\n<example>\n  User: Explain what photosynthesis is.\n  Assistant: Photosynthesis is the process by which plants convert sunlight into energy...\n\n<reasoning>\n  Informational request with no complex research investigation needed.\n</reasoning>\n</example>\n\n<example>\n  User: Find the current stock price of Apple.\n  Assistant: *Looks up current AAPL price* Apple (AAPL) is currently trading at...\n\n<reasoning>\n  Single straightforward data lookup with immediate results.\n</reasoning>\n</example>\n\n<example>\n  User: What does GDP stand for?\n  Assistant: GDP stands for Gross Domestic Product...\n\n<reasoning>\n  Simple definition request with no multi-step research required.\n</reasoning>\n</example>\n\n### Task States and Management\n\n1. **Research States:**\n  - pending: Not yet started\n  - in_progress: Currently investigating\n  - completed: Research finished successfully\n  - cancelled: No longer needed\n\n2. **Research Management:**\n  - Update status in real-time\n  - Mark complete IMMEDIATELY after finishing each phase\n  - Only ONE research area in_progress at a time\n  - Complete current investigations before starting new ones\n\n3. **Research Breakdown:**\n  - Create specific, actionable investigation items\n  - Break complex research into manageable phases\n  - Use clear, descriptive research objectives\n\nWhen in doubt, use this tool. Proactive research management demonstrates thoroughness and ensures complete investigation of requirements."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    },
+    {
+      "id": "7a819d92-c53e-4e13-be8a-112eefa39c17",
+      "code": "",
+      "name": "Search Web",
+      "httpAction": {
+        "id": "1ee8a09f-cdb9-4d51-921a-b917deb6b64b",
+        "url": "https://cloud.typingmind.com/api/plugins/serp/search?api_key={serpAPIKey}&engine=google&q={query}&json_restrictor=organic_results[].{title,snippet,source,link}",
+        "name": "",
+        "method": "GET"
+      },
+      "openaiSpec": {
+        "name": "research_tool_search_web",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "query"
+          ],
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The search term to look up on the web. Be specific and include relevant keywords for better results. For technical queries, include version numbers or dates if relevant."
+            },
+            "explanation": {
+              "type": "string",
+              "description": "One sentence explanation as to why this tool is being used, and how it contributes to the goal."
+            }
+          }
+        },
+        "description": "Search the web using SERP API (Google search engine) for real-time information about any topic. Use this tool when you need up-to-date information that might not be available in your training data, or when you need to verify current facts. The search results will include relevant snippets and URLs from web pages. This is particularly useful for questions about current events, technology updates, or any topic that requires recent information."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "http"
+    },
+    {
+      "id": "40e566af-f012-4dca-90c3-9965f391bfc2",
+      "code": "async function extract_web_page(params, userSettings) {\n  if (userSettings.researchMode === 'Comprehensive mode') {\n    return await fetch('https://api.firecrawl.dev/v2/scrape', {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        Authorization: 'Bearer ' + userSettings.firecrawlApiKey,\n      },\n      body: JSON.stringify({\n        url: params.pageUrl,\n        formats: ['markdown'],\n        onlyMainContent: true,\n      }),\n    }).then((r) => r.json());\n  } else {\n    const json = await fetch('https://api.firecrawl.dev/v2/scrape', {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        Authorization: 'Bearer ' + userSettings.firecrawlApiKey,\n      },\n      body: JSON.stringify({\n        url: params.pageUrl,\n        formats: [\n          {\n            type: 'json',\n            prompt: params.extractInstructions,\n          },\n        ],\n      }),\n    }).then((r) => r.json());\n\n    if (userSettings.researchMode === 'Dynamic mode') {\n      return {\n        result: json,\n        furtherInstructions:\n          'This result is extracted from the original web page. Use the \"read_full_web_page_content\" tool if you need to read the full content of the web page.',\n      };\n    } else {\n      return json;\n    }\n  }\n}\n",
+      "name": "Extract Web Page",
+      "httpAction": {
+        "id": "fe67c640-6a5b-4ff8-bf44-394bccd0d109",
+        "url": "https://api.firecrawl.dev/v1/scrape",
+        "name": "",
+        "method": "POST",
+        "hasBody": true,
+        "hasHeaders": true,
+        "requestBody": "{\n    \"url\": \"{pageUrl}\",\n    \"formats\": [\n        \"markdown\"\n    ],\n    \"onlyMainContent\": true\n}",
+        "requestHeaders": "{\n    \"Content-Type\": \"application/json\",\n    \"Authorization\": \"Bearer {firecrawlApiKey}\"\n}"
+      },
+      "openaiSpec": {
+        "name": "extract_web_page",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "pageUrl"
+          ],
+          "properties": {
+            "pageUrl": {
+              "type": "string",
+              "description": "The URL of the web page to scrape for content."
+            },
+            "extractInstructions": {
+              "type": "string",
+              "description": "Describe the data you want to extract from the web page."
+            }
+          }
+        },
+        "description": "Retrieves the text content of a web page in markdown format. When in Lightweight Mode, this tool returns an extracted content with only the answer based on the extractInstructions. When in Comprehensive Mode, this tool returns the full content of the web page."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    },
+    {
+      "id": "16f3fbef-df16-4833-8d43-be7e71e8a912",
+      "code": "async function read_full_web_page_content(params, userSettings) {\n  if (userSettings.researchMode !== 'Lightweight mode') {\n    return await fetch('https://api.firecrawl.dev/v2/scrape', {\n      method: 'POST',\n      headers: {\n        'Content-Type': 'application/json',\n        Authorization: 'Bearer ' + userSettings.firecrawlApiKey,\n      },\n      body: JSON.stringify({\n        url: params.pageUrl,\n        formats: ['markdown'],\n        onlyMainContent: true,\n      }),\n    }).then((r) => r.json());\n  } else {\n    return \"\\\"read_full_web_page_content\\\" is not allowed in \" + userSettings.researchMode;\n  }\n}",
+      "name": "Read Full Web Page",
+      "openaiSpec": {
+        "name": "read_full_web_page_content",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "pageUrl"
+          ],
+          "properties": {
+            "pageUrl": {
+              "type": "string",
+              "description": "The URL of the web page to scrape for content."
+            }
+          }
+        },
+        "description": "Retrieves the full text content of a web page in markdown format, this will return the full content of the website that may be extremely long."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    }
+  ],
+  "authenticationType": "AUTH_TYPE_NONE",
+  "dynamicContextEndpoints": [
+    {
+      "id": "800bd740-c179-4c63-b566-0a74223fc261",
+      "url": "",
+      "name": "Deep Research Mode",
+      "method": "GET",
+      "source": "static",
+      "staticContent": "<USER_INPUT>\n**Deep Research**: Enabled.\n**Research Mode**: {researchMode}\n</USER_INPUT>\n\nYou are an AI research assistant tasked with conducting deep, thorough research on a given topic. Your goal is to gather comprehensive information, analyze it, and present a well-structured report.\n\nResearch Mode Instructions:\n- **Lightweight Mode**: In lightweight mode, Deep Research will attempt to extract data from online sources using the extract_web_page tool, which saves tokens at a cost of reduced data accuracy. This is the default mode.\n- **Comprehensive Mode**: Deep Research will read the full content of the online sources to determine the final answer. If the web pages have a lot of content, it can risk consuming a lot of tokens, which is expensive and may exceed the model's context length limit.\n- **Dynamic Mode**: Deep Research will run in Lightweight Mode by default, but may opt in to read full web page content when needed (using the \"read_full_web_page_content\" tool) to get the most accurate answer.\n\nFollow these instructions carefully:\n\n1. Begin by reading the research task:\n<research_task>\n{lastUserMessage}\n</research_task>\n\n2. Create an initial research plan using the planning tool to create a todo list. This plan should outline the main areas of investigation and the steps you'll take to complete the task. Update the status of each todo list item as you progress through your research.\n\n3. Conduct at least one web search to gather information. In deep research mode, all information presented must come from the sources of your research. Before using any tools, provide your reasoning for choosing that particular tool.\n\n4. Follow these guidelines while gathering information:\n   - Collect all necessary data to carry out the research task concisely and thoroughly.\n   - Use bullet points or numbered lists for clarity when appropriate.\n   - Don't ask for unnecessary information or information already provided.\n   - Continue researching until all items in your todo list are completed.\n   - Use available tools one at a time to find the requested information.\n   - Gather data from multiple sources to ensure accuracy and comprehensiveness.\n\n5. Cite all sources used with links to the original websites.\n\n6. Once you have gathered all the information, compile a comprehensive report. Use markdown formatting (such as tables and bullet points) and tools (like graphs) to present your findings effectively. Highlight any surprising or interesting details you discovered during your research.\n\n7. Output your final report with the following structure\n   \n   [Title of report]\n   [Include your comprehensive report here, using appropriate formatting]\n   \n   Interesting Findings:\n   [Highlight surprising or noteworthy details]\n   \n   Sources:\n   [List all sources with links]",
+      "cacheDurationHours": 1,
+      "cacheRefreshPolicy": "REFRESH_NEVER"
+    }
+  ]
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "id": "render_html",
+  "uuid": "f76b6080-3e40-4f94-b4be-54297103956f",
+  "emoji": "🔲",
+  "title": "Interactive Canvas",
+  "openaiSpec": {
+    "name": "render_interactive_canvas",
+    "parameters": {
+      "type": "object",
+      "required": ["htmlSource"],
+      "properties": {
+        "htmlSource": {
+          "type": "string",
+          "description": "The HTML source to render to the canvas."
+        },
+        "canvasHeight": {
+          "type": "number",
+          "description": "The height of the canvas in pixels. Default is 500."
+        }
+      }
+    },
+    "description": "Render an interactive canvas with HTML source to the user interface. The HTML source can include JavaScript and CSS to create interactive elements. This can be used to create custom user interfaces, games, demos, charts, and more. The canvas width is always 100% of the container width, and the height can be specified in pixels."
+  },
+  "implementationType": "javascript",
+  "outputType": "render_html"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+    "uuid": "0a242102-1c3c-4585-b04b-f3e47c814821",
+    "id": "youtube_transcript",
+    "emoji": "🧩",
+    "title": "YouTube Transcript",
+    "overviewMarkdown": "# Youtube Transcript\n\nThis plugin allows you to fetch the transcript of YouTube videos using a provided URL.\n\n## ❗ Important Notes\n\n- This plugin requires a plugin server to be set up. [Learn how to set up a plugin server here (open-source)](https://docs.typingmind.com/plugins/plugins-server/how-to-deploy-plugins-server-on-render)\n- Long web pages may results in long response and consume more tokens or exceed the maximum context length. This plugin is best used for short articles or blog posts.\n\n## Example usage\n> Please provide the transcript for the YouTube video at this URL: https://www.youtube.com/watch?v=22StbCBvWLg.",
+    "openaiSpec": {
+        "name": "get_youtube_transcript",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "videoId"
+          ],
+          "properties": {
+            "videoId": {
+              "type": "string",
+              "description": "The video id extracted from a given URL"
+            }
+          }
+        },
+        "description": "Fetch transcript for the youtube video with a given URL."
+    },
+    "userSettings": [
+        {
+            "name": "pluginServer",
+            "label": "Plugin Server",
+            "required": true,
+            "description": "The URL of the plugin server",
+            "placeholder": "https://..."
+        }
+    ],
+    "syncedAt": null,
+    "iconURL": "data:image/png;base64,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",
+    "authenticationType": "AUTH_TYPE_NONE",
+    "implementationType": "javascript",
+    "oauthConfig": null,
+    "outputType": "respond_to_ai"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+    "id": "get_google_calendar_events",
+    "code": "",
+    "uuid": "c9e58453-84d5-45c6-9b21-02cbdb8815da",
+    "emoji": "🧩",
+    "title": "Google Calendar",
+    "iconURL": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/480px-Google_%22G%22_logo.svg.png",
+    "disabled": false,
+    "httpAction": {
+        "id": "132b743d-97b4-4c96-bb93-2302e364d71b",
+        "url": "https://www.googleapis.com/calendar/v3/calendars/primary/events?maxResults={maxResults}&timeMin={timeMin}&timeMax={timeMax}",
+        "name": "",
+        "method": "GET",
+        "hasHeaders": true,
+        "requestHeaders": "{\n  \"Authorization\": \"Bearer {OAUTH_PLUGIN_ACCESS_TOKEN}\"\n}"
+    },
+    "openaiSpec": {
+        "name": "get_google_calendar_events",
+        "parameters": {
+            "type": "object",
+            "required": [
+                "timeMin",
+                "timeMax"
+            ],
+            "properties": {
+                "timeMax": {
+                    "type": "string",
+                    "description": "Must be an RFC3339 timestamp with mandatory time zone offset, for example, 2011-06-03T10:00:00-07:00, 2011-06-03T10:00:00Z."
+                },
+                "timeMin": {
+                    "type": "string",
+                    "description": "Must be an RFC3339 timestamp with mandatory time zone offset, for example, 2011-06-03T10:00:00-07:00, 2011-06-03T10:00:00Z."
+                }
+            }
+        },
+        "description": "Return the next 10 events in the current user Google's calendar starting from a specific time range"
+    },
+    "outputType": "respond_to_ai",
+    "oauthConfig": {
+        "scopes": "https://www.googleapis.com/auth/calendar.readonly",
+        "tokenURL": "https://oauth2.googleapis.com/token",
+        "contentType": "json",
+        "authorizationURL": "https://accounts.google.com/o/oauth2/v2/auth",
+        "prompt": "consent",
+        "accessType": "offline"
+    },
+    "userSettings": [
+        {
+            "name": "maxResults",
+            "label": "Max Results",
+            "description": "Number of events to return from the Google Calendar API (default: 10)",
+            "defaultValue": 10
+        }
+    ],
+    "overviewMarkdown": "Give AI read-only access to your Google Calendar",
+    "authenticationType": "AUTH_TYPE_OAUTH",
+    "implementationType": "http"
+}
+
+
+
+
+
+
+
+
+
+
+{
+  "id": "image_generation_via_stable_diffusion",
+  "uuid": "f582e880-16d8-4a02-b247-86b4cbe9b389",
+  "userSettings": [
+    {
+      "name": "stabilityAPIKey",
+      "required": true,
+      "type": "password",
+      "label": "StabilityAI API Key",
+      "description": "Get your free API Key from StabilityAI: https://platform.stability.ai/account/keys"
+    },
+    {
+      "name": "width",
+      "type": "number",
+      "label": "Width of the image (min: 320, max: 1536)",
+      "description": "Must be specified in increments of 64. (e.g. 512, 1024)",
+      "placeholder": "512",
+      "defaultValue": 512
+    },
+    {
+      "name": "height",
+      "type": "number",
+      "label": "Height of the image (min: 320, max: 1536)",
+      "description": "Must be specified in increments of 64. (e.g. 512, 1024)",
+      "placeholder": "512",
+      "defaultValue": 512
+    }
+  ],
+  "emoji": "🖼️",
+  "title": "Stable Diffusion v2 Image",
+  "openaiSpec": {
+    "name": "image_generation_via_stable_diffusion",
+    "parameters": {
+      "type": "object",
+      "required": ["prompt"],
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "The text description of the desired image."
+        }
+      }
+    },
+    "description": "Generate images using Stable Diffusion based on a text description. Adhere to guidelines such as English translation, not depicting politicians or recent artists, and ensuring artist references are over 100 years old.\n\nWhen creating prompt: substitute artist names with style-describing adjectives, include artistic era, mention primary medium. Image type, descent, gender are to be explicitly stated. Avoid offense and bias, conceal identities except gender and physique, retain text references, replace profession titles with universal terms.\n\nPrompt changes aren't allowed unless they anonymise individuals. Replace creative professional/studio names with style descriptions. All prompts should detail every image part in objective terms within a detailed paragraph of over three sentences.\n\nImportant: after calling this function, the output images will be shown to the user automatically. You don't need to include the output image to the users again in your response to avoid duplicate images."
+  },
+  "httpAction": {
+    "id": "86d0cd86-f4de-4ca4-b712-1bfb01dfbfe6",
+    "method": "POST",
+    "name": "",
+    "url": "https://api.stability.ai/v1/generation/stable-diffusion-v1-6/text-to-image",
+    "requestBody": "{\"text_prompts\":[{\"text\":\"{prompt}\"}],\"cfg_scale\":7,\"samples\":1,\"steps\":30,\"width\":{width},\"height\":{height}}",
+    "requestHeaders": "{\"Content-Type\":\"application/json\",\"Authorization\":\"Bearer {stabilityAPIKey}\"}",
+    "resultTransform": {
+      "engine": "handlebars",
+      "templateString": "![{{__VARIABLES.prompt}}](data:image/png;base64,{{artifacts.[0].base64}})"
+    },
+    "hasResultTransform": true,
+    "hasBody": true,
+    "hasHeaders": true
+  },
+  "implementationType": "javascript",
+  "outputType": "render_markdown"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "id": "image_generation_via_stable_diffusion_3",
+  "uuid": "f582e880-16d8-4a02-b247-86b4cbe9b390",
+  "userSettings": [
+    {
+      "name": "stabilityAPIKey",
+      "required": true,
+      "type": "password",
+      "label": "StabilityAI API Key",
+      "description": "Get your free API Key from StabilityAI: https://platform.stability.ai/account/keys"
+    },
+    {
+      "name": "output_format",
+      "label": "Format of the generated image",
+      "description": "Optional, default: \"png\"",
+      "type": "enum",
+      "values": ["png", "jpeg"],
+      "defaultValue": "png"
+    },
+    {
+      "name": "aspect_ratio",
+      "label": "Aspect ratio of the generated image",
+      "description": "Optional, default: \"1:1\"",
+      "type": "enum",
+      "values": [
+        "16:9",
+        "1:1",
+        "21:9",
+        "2:3",
+        "3:2",
+        "4:5",
+        "5:4",
+        "9:16",
+        "9:21"
+      ],
+      "defaultValue": "1:1"
+    },
+    {
+      "name": "model",
+      "label": "Model to use for generation",
+      "description": "Optional, default: \"sd3-large\"",
+      "type": "enum",
+      "values": ["sd3-medium", "sd3-large", "sd3-large-turbo"],
+      "defaultValue": "sd3-large"
+    },
+    {
+      "name": "negative_prompt",
+      "label": "Negative prompt",
+      "description": "Optional, a blurb of text describing what you do not wish to see in the output image",
+      "defaultValue": ""
+    }
+  ],
+  "iconURL": "https://www.typingmind.com/stable-diffusion.png",
+  "title": "Stable Diffusion v3 Image",
+  "openaiSpec": {
+    "name": "image_generation_via_stable_diffusion_3",
+    "parameters": {
+      "type": "object",
+      "required": ["prompt"],
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "The text description of the desired image."
+        }
+      }
+    },
+    "description": "Generate images using Stable Diffusion v3 based on a text description. Adhere to guidelines such as English translation, not depicting politicians or recent artists, and ensuring artist references are over 100 years old.\n\nWhen creating prompt: substitute artist names with style-describing adjectives, include artistic era, mention primary medium. Image type, descent, gender are to be explicitly stated. Avoid offense and bias, conceal identities except gender and physique, retain text references, replace profession titles with universal terms.\n\nPrompt changes aren't allowed unless they anonymise individuals. Replace creative professional/studio names with style descriptions. All prompts should detail every image part in objective terms within a detailed paragraph of over three sentences.\n\nImportant: after calling this function, the output images will be shown to the user automatically. You don't need to include the output image to the users again in your response to avoid duplicate images."
+  },
+  "httpAction": {
+    "id": "4105dcae-c4c5-432f-91cd-af69188adda4",
+    "method": "POST",
+    "name": "",
+    "url": "https://api.stability.ai/v2beta/stable-image/generate/sd3",
+    "requestBody": "{\"prompt\":\"{prompt}\",\"model\":\"{model}\",\"aspect_ratio\":\"{aspect_ratio}\",\"negative_prompt\":\"{negative_prompt}\",\"output_format\":\"{output_format}\"}",
+    "requestBodyFormat": "form-data",
+    "requestHeaders": "{\"Accept\":\"application/json; type=image/*\",\"Authorization\":\"Bearer {stabilityAPIKey}\"}",
+    "resultTransform": {
+      "engine": "handlebars",
+      "templateString": "![{{__VARIABLES.prompt}}](data:image/{{__VARIABLES.output_format}};base64,{{image}})"
+    },
+    "hasResultTransform": true,
+    "hasBody": true,
+    "hasHeaders": true
+  },
+  "implementationType": "javascript",
+  "outputType": "render_markdown"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "id": "image_generation_via_dalle_3",
+  "uuid": "0ee9d4d8-c453-40bd-b2e1-04b94e935fa2",
+  "userSettings": [
+    {
+      "name": "openaikey",
+      "label": "OpenAI API Key (Required)",
+      "description": "The images will be generated using this OpenAI API. Get your API key from https://platform.openai.com/account/api-keys",
+      "type": "password",
+      "required": true,
+      "placeholder": "sk-******"
+    },
+    {
+      "name": "resolution",
+      "label": "Resolution",
+      "description": "Optional, default: \"1024x1024\"",
+      "type": "enum",
+      "values": ["1024x1024", "1024x1792", "1792x1024"]
+    },
+    {
+      "name": "quality",
+      "label": "Quality",
+      "description": "Optional, default: \"standard\"",
+      "type": "enum",
+      "values": ["standard", "hd"]
+    }
+  ],
+  "emoji": "✨",
+  "title": "DALL-E 3",
+  "openaiSpec": {
+    "name": "image_generation_via_dalle_3",
+    "parameters": {
+      "type": "object",
+      "required": ["prompt"],
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "The description of the image as defined in the guidelines."
+        }
+      }
+    },
+    "description": "Generate images using DALL-E 3 based on image descriptions. Adhere to guidelines such as English translation, not depicting politicians or recent artists, and ensuring artist references are over 100 years old.\nWhen creating prompts: substitute artist names with style-describing adjectives, include artistic era, mention primary medium. Image type, descent, gender are to be explicitly stated. Avoid offense and bias, conceal identities except gender and physique, retain text references, replace profession titles with universal terms.\nPrompt changes aren't allowed unless they anonymise individuals. Replace creative professional/studio names with style descriptions. All prompts should detail every image part in objective terms within a detailed paragraph of over three sentences.\nImportant: after calling this function, the output images will be shown to the user automatically. You don't need to include the output image to the users again in your response to avoid duplicate images."
+  },
+  "httpAction": {
+    "hasBody": true,
+    "hasHeaders": true,
+    "hasResultTransform": true,
+    "id": "a317a913-6d54-4d0e-b2a0-285712d45640",
+    "method": "POST",
+    "name": "",
+    "requestBody": "{\n        \"model\": \"dall-e-3\",\n        \"prompt\": \"{prompt}\",\n        \"n\": 1,\n        \"size\": \"{resolution}\",\n        \"quality\": \"{quality}\",\n        \"response_format\": \"url\"\n    }",
+    "requestHeaders": "{\n\"Content-Type\": \"application/json\",\n\"Authorization\": \"Bearer {openaikey}\"\n}",
+    "resultTransform": {
+      "engine": "handlebars",
+      "templateString": "![{{data.[0].revised_prompt}}]({{data.[0].url}})\n\n_Note: Generated images will expire after 1 hour. Save them to your device if you wish to keep the images._"
+    },
+    "url": "https://api.openai.com/v1/images/generations"
+  },
+  "implementationType": "javascript",
+  "outputType": "render_markdown"
+}
+
+
+
+
+
+
+
+
+{
+    "id": "get_web_page_content_scraped_by_firecrawl",
+    "code": "# Your JS code here",
+    "uuid": "b38ae8fa-bfab-4b2c-9e0a-a96e1c3c0f90",
+    "emoji": "🧩",
+    "title": "Read Web Page (Firecrawl)",
+    "iconURL": "https://raw.githubusercontent.com/TypingMind/plugin-firecrawl-web-page-reader/refs/heads/main/icon.png",
+    "disabled": false,
+    "httpAction": {
+        "id": "1e7ff958-19dc-4b28-9789-b83544f37695",
+        "url": "https://api.firecrawl.dev/v1/scrape",
+        "name": "",
+        "method": "POST",
+        "hasBody": true,
+        "hasHeaders": true,
+        "requestBody": "{\n    \"url\": \"{pageUrl}\",\n    \"formats\": [\n        \"{responseFormat}\"\n    ],\n    \"onlyMainContent\": {onlyMainContent}\n}",
+        "requestHeaders": "{\n    \"Content-Type\": \"application/json\",\n    \"Authorization\": \"Bearer {firecrawlApiKey}\"\n}",
+        "requestBodyFormat": "json"
+    },
+    "openaiSpec": {
+        "name": "get_web_page_content_scraped_by_firecrawl",
+        "parameters": {
+            "type": "object",
+            "required": [
+                "pageUrl"
+            ],
+            "properties": {
+                "pageUrl": {
+                    "type": "string",
+                    "description": "The URL of the web page to scrape for content."
+                }
+            }
+        },
+        "description": "Retrieves the text content of a web page in markdown format by scraping it using the Firecrawl API"
+    },
+    "outputType": "respond_to_ai",
+    "oauthConfig": null,
+    "userSettings": [
+        {
+            "name": "firecrawlApiKey",
+            "label": "Firecrawl API Key",
+            "required": true,
+            "description": "Enter your Firecrawl API key. You can create one at https://www.firecrawl.dev/app/api-keys"
+        },
+        {
+            "name": "onlyMainContent",
+            "type": "enum",
+            "label": "Only Main Content",
+            "values": [
+                "true",
+                "false"
+            ],
+            "description": "Indicates whether to scrape only the main content. Optional, default value is true.",
+            "defaultValue": "true"
+        },
+        {
+            "name": "responseFormat",
+            "type": "enum",
+            "label": "Response Format",
+            "values": [
+                "markdown",
+                "html",
+                "rawHtml",
+                "links",
+                "screenshot",
+                "extract",
+                "screenshot@fullPage"
+            ],
+            "description": "Specifies the format of the response from Firecrawl. Optional, default value is markdown.",
+            "defaultValue": "markdown"
+        }
+    ],
+    "overviewMarkdown": "# Firecrawl Web Page Reader\n\nThis plugin allows users to read and analyze a web page by scraping its content using the [Firecrawl Scrape API](https://docs.firecrawl.dev/api-reference/endpoint/scrape).\n\n👉 **Get started with the Firecrawl Scrape API:**  \n- API Documentation: https://docs.firecrawl.dev/api-reference\n\n🔑 **Set up your Firecrawl API Key and Authenticate:**  \n- Firecrawl API requires an API key for access. Learn more at https://www.firecrawl.dev/app/api-keys\n- Update the plugin's user settings:\n  - **Firecrawl API Key:** `fc-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX`  \n\n## ❗ Important Notes\n\n### Rate Limits\nThere are rate limits for API requests depending on different pricing plans. Learn more at https://docs.firecrawl.dev/rate-limits.\n\n### Pricing Plans\nFirecrawl offers various subscription types. Make sure to review the available features and limitations in your current plan. See more details at https://www.firecrawl.dev/pricing.\n\n## Example Usage\n> Please summarize the content from this article https://www.theverge.com/2024/10/23/24277609/tesla-earnings-q3-2024-net-income-margin-sales",
+    "authenticationType": "AUTH_TYPE_NONE",
+    "implementationType": "http"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "id": "exa_scholar_researcher_dynamic_v3",
+  "uuid": "43a57c37-d216-4a46-a3d0-574fa00fc411",
+  "emoji": "🎓",
+  "title": "Exa Scholar Dynamic",
+  "syncedAt": "2026-01-29T23:27:45.000Z",
+  "createdAt": "2026-01-29T23:10:49.488Z",
+  "deletedAt": null,
+  "userSettings": [
+    {
+      "name": "exa_api_key",
+      "type": "password",
+      "label": "Exa API Key",
+      "required": true,
+      "description": "Get your API key at dashboard.exa.ai"
+    },
+    {
+      "name": "worker_url",
+      "type": "text",
+      "label": "Cloudflare Worker URL",
+      "required": true,
+      "description": "Your deployed worker URL (e.g., https://exa-proxy.username.workers.dev)"
+    }
+  ],
+  "pluginFunctions": [
+    {
+      "id": "search_papers_text",
+      "name": "search_papers_text",
+      "httpAction": {
+        "url": "{worker_url}",
+        "method": "POST",
+        "hasBody": true,
+        "hasHeaders": true,
+        "requestBody": "{\n  \"query\": \"{query}\",\n  \"type\": \"auto\",\n  \"category\": \"research paper\",\n  \"numResults\": {numResults},\n  \"contents\": {\n    \"text\": {\n      \"maxCharacters\": {maxCharacters},\n      \"verbosity\": \"standard\"\n    }\n  }\n}",
+        "requestHeaders": "{\n  \"Content-Type\": \"application/json\",\n  \"x-api-key\": \"{exa_api_key}\"\n}"
+      },
+      "openaiSpec": {
+        "name": "search_papers_text",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "query",
+            "numResults",
+            "maxCharacters"
+          ],
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The research query."
+            },
+            "numResults": {
+              "type": "integer",
+              "default": 5,
+              "description": "Number of results to return. Use 3-5 for Depth, 10-15 for Breadth."
+            },
+            "maxCharacters": {
+              "type": "integer",
+              "default": 15000,
+              "description": "Characters per result. Use 20000+ for Depth, <10000 for Breadth."
+            }
+          }
+        },
+        "description": "PRIMARY RESEARCH TOOL. Retrieves full body text of papers. DYNAMIC CONTROL: Adjust numResults and maxCharacters based on the user's need for Depth vs Breadth."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "http"
+    },
+    {
+      "id": "search_papers_highlights",
+      "name": "search_papers_highlights",
+      "httpAction": {
+        "url": "{worker_url}",
+        "method": "POST",
+        "hasBody": true,
+        "hasHeaders": true,
+        "requestBody": "{\n  \"query\": \"{query}\",\n  \"type\": \"auto\",\n  \"category\": \"research paper\",\n  \"numResults\": {numResults},\n  \"contents\": {\n    \"highlights\": {\n      \"numSentences\": {numSentences}\n    }\n  }\n}",
+        "requestHeaders": "{\n  \"Content-Type\": \"application/json\",\n  \"x-api-key\": \"{exa_api_key}\"\n}"
+      },
+      "openaiSpec": {
+        "name": "search_papers_highlights",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "query",
+            "numResults"
+          ],
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The research query."
+            },
+            "numResults": {
+              "type": "integer",
+              "default": 10,
+              "description": "Number of papers to pull highlights from."
+            },
+            "numSentences": {
+              "type": "integer",
+              "default": 3,
+              "description": "Number of sentences per highlight snippet."
+            }
+          }
+        },
+        "description": "Returns relevant snippets and quotes from scholarly articles. Great for broad pattern recognition."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "http"
+    },
+    {
+      "id": "search_papers_summary",
+      "name": "search_papers_summary",
+      "httpAction": {
+        "url": "{worker_url}",
+        "method": "POST",
+        "hasBody": true,
+        "hasHeaders": true,
+        "requestBody": "{\n  \"query\": \"{query}\",\n  \"type\": \"auto\",\n  \"category\": \"research paper\",\n  \"numResults\": {numResults},\n  \"contents\": {\n    \"summary\": {}\n  }\n}",
+        "requestHeaders": "{\n  \"Content-Type\": \"application/json\",\n  \"x-api-key\": \"{exa_api_key}\"\n}"
+      },
+      "openaiSpec": {
+        "name": "search_papers_summary",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "query",
+            "numResults"
+          ],
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The research query."
+            },
+            "numResults": {
+              "type": "integer",
+              "default": 10,
+              "description": "Number of summaries to retrieve."
+            }
+          }
+        },
+        "description": "Returns AI-generated summaries of scholarly research papers. Use for quick exploration."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "http"
+    }
+  ],
+  "overviewMarkdown": "### Exa Scholar Dynamic\nUpdated version allowing the AI to dynamically choose the balance between **Depth** (fewer results, more text) and **Breadth** (more results, shorter snippets) for every query.",
+  "authenticationType": "AUTH_TYPE_NONE"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "id": "google_personal_intel_final",
+  "uuid": "69e93316-179d-4eba-b835-45d0b19a63be",
+  "emoji": "🧠",
+  "title": "Google Personal Intelligence",
+  "iconURL": "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/480px-Google_%22G%22_logo.svg.png",
+  "syncedAt": "2026-01-24T23:31:18.000Z",
+  "createdAt": "2026-01-24T22:53:46.716Z",
+  "deletedAt": null,
+  "oauthConfig": {
+    "prompt": "consent",
+    "scopes": "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/tasks.readonly",
+    "tokenURL": "https://oauth2.googleapis.com/token",
+    "accessType": "offline",
+    "contentType": "json",
+    "authorizationURL": "https://accounts.google.com/o/oauth2/v2/auth"
+  },
+  "userSettings": null,
+  "pluginFunctions": [
+    {
+      "id": "search_gmail",
+      "name": "search_gmail",
+      "httpAction": {
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages?q={query}&maxResults=5",
+        "method": "GET",
+        "hasHeaders": true,
+        "requestHeaders": "{\"Authorization\": \"Bearer {OAUTH_PLUGIN_ACCESS_TOKEN}\"}"
+      },
+      "openaiSpec": {
+        "name": "search_gmail",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "query"
+          ],
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Search query (e.g. 'Amazon receipt', 'license plate')."
+            }
+          }
+        },
+        "description": "Search the user's Gmail. Use this to find info like tire sizes, receipts, or flight dates. Returns message IDs."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "http"
+    },
+    {
+      "id": "get_gmail_details",
+      "name": "get_gmail_details",
+      "httpAction": {
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages/{messageId}",
+        "method": "GET",
+        "hasHeaders": true,
+        "requestHeaders": "{\"Authorization\": \"Bearer {OAUTH_PLUGIN_ACCESS_TOKEN}\"}"
+      },
+      "openaiSpec": {
+        "name": "get_gmail_details",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "messageId"
+          ],
+          "properties": {
+            "messageId": {
+              "type": "string",
+              "description": "The ID of the message to retrieve."
+            }
+          }
+        },
+        "description": "Read the full snippet and headers of an email using an ID. Call this after finding a relevant email ID with search_gmail."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "http"
+    },
+    {
+      "id": "get_calendar",
+      "name": "get_calendar",
+      "httpAction": {
+        "url": "https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin={timeMin}&timeMax={timeMax}",
+        "method": "GET",
+        "hasHeaders": true,
+        "requestHeaders": "{\"Authorization\": \"Bearer {OAUTH_PLUGIN_ACCESS_TOKEN}\"}"
+      },
+      "openaiSpec": {
+        "name": "get_calendar",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "timeMin",
+            "timeMax"
+          ],
+          "properties": {
+            "timeMax": {
+              "type": "string",
+              "description": "ISO format timestamp"
+            },
+            "timeMin": {
+              "type": "string",
+              "description": "ISO format timestamp"
+            }
+          }
+        },
+        "description": "Retrieve calendar events. Helpful for 'Am I free?' or 'Check my schedule'."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "http"
+    }
+  ],
+  "overviewMarkdown": "# Google Personal Intelligence\nMimics Gemini 3 by connecting to your Google workspace. \n\n### Functions:\n1. **Search Gmail**: Find emails about specific topics.\n2. **Get Email Content**: Read the actual text of an email found via search.\n3. **Calendar**: Check your schedule.\n4. **Drive**: Find personal files.",
+  "authenticationType": "AUTH_TYPE_OAUTH"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{
+  "id": "tavily_reddit_search",
+  "uuid": "aec793cc-40da-4399-93e0-f29dc9db073e",
+  "emoji": "🧡",
+  "title": "Reddit Deep Search",
+  "syncedAt": "2026-01-14T15:44:51.000Z",
+  "createdAt": "2026-01-14T15:31:07.269Z",
+  "deletedAt": null,
+  "userSettings": [
+    {
+      "name": "tavilyKey",
+      "type": "password",
+      "label": "Tavily API Key",
+      "required": true,
+      "description": "Get a free key at tavily.com"
+    }
+  ],
+  "pluginFunctions": [
+    {
+      "id": "LEGACY_DEFAULT_FUNCTION",
+      "code": "async function search_reddit_deep(params, userSettings) {\n  const { query } = params;\n  const url = 'https://api.tavily.com/search';\n\n  const response = await fetch(url, {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({\n      api_key: userSettings.tavilyKey,\n      query: query,\n      search_depth: \"advanced\",\n      include_domains: [\"reddit.com\"],\n      max_results: 5\n    })\n  });\n\n  if (!response.ok) {\n    const err = await response.json();\n    throw new Error(err.detail || \"Search failed\");\n  }\n\n  const data = await response.json();\n  return data.results.map(r => ({\n    Title: r.title,\n    Content: r.content, // Tavily returns a large chunk of text here\n    URL: r.url,\n    Score: r.score\n  }));\n}",
+      "name": "search_reddit_deep",
+      "openaiSpec": {
+        "name": "search_reddit_deep",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "query"
+          ],
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The topic to search for on Reddit."
+            }
+          }
+        },
+        "description": "Searches Reddit for deep community insights and full post content. Returns substantial text from the discussions."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    }
+  ],
+  "authenticationType": "AUTH_TYPE_NONE"
+}
