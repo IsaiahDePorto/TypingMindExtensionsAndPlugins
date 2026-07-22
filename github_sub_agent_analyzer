@@ -1,0 +1,184 @@
+{
+  "id": "github_sub_agent_analyzer",
+  "uuid": "b77ca22f-6354-44c8-9bf6-2273183b03e6",
+  "emoji": "🐙",
+  "title": "GitHub Sub-Agent Analyzer",
+  "iconURL": "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png",
+  "syncedAt": "2026-06-22T13:09:07.000Z",
+  "createdAt": "2026-04-10T12:00:00.000Z",
+  "deletedAt": null,
+  "userSettings": [
+    {
+      "name": "githubPAT",
+      "type": "password",
+      "label": "GitHub Personal Access Token (PAT)",
+      "required": true,
+      "description": "Used to fetch repository data and avoid rate limits."
+    },
+    {
+      "name": "geminiAPIKey",
+      "type": "password",
+      "label": "Gemini API Key",
+      "required": true,
+      "description": "Used for the Flash Lite compression agent."
+    },
+    {
+      "name": "geminiModel",
+      "type": "text",
+      "label": "Gemini Compression Model",
+      "required": true,
+      "description": "The specific Gemini model to use for codebase compression.",
+      "defaultValue": "gemini-2.5-flash"
+    },
+    {
+      "name": "maxLinesForFullFile",
+      "type": "number",
+      "label": "Max Lines for Full File Fetch",
+      "required": true,
+      "description": "The maximum number of lines allowed when fetching a full file directly. Files larger than this will require the Anchor tool or Flash Lite analyzer.",
+      "defaultValue": 300
+    },
+    {
+      "name": "maxCharsPerLine",
+      "type": "number",
+      "label": "Max Characters Per Line",
+      "required": true,
+      "description": "The maximum character limit allowed for any single line. Prevents loading minified code, compiled assets, or single-line datasets directly.",
+      "defaultValue": 1000
+    }
+  ],
+  "pluginFunctions": [
+    {
+      "id": "get_repo_structure_func",
+      "code": "async function get_repo_structure(params, userSettings) {\n  const { repoUrl, branch } = params;\n  const { githubPAT } = userSettings;\n  try {\n    const match = repoUrl.match(/github\\.com\\/([^\\/]+)\\/([^\\/]+)/);\n    if (!match) return \"Error: Invalid GitHub URL. Must be in format https://github.com/owner/repo\";\n    const owner = match[1];\n    const repo = match[2].replace('.git', '');\n\n    let targetBranch = branch;\n    if (!targetBranch) {\n      const repoInfoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {\n        headers: { 'Authorization': `Bearer ${githubPAT}` }\n      });\n      if (!repoInfoRes.ok) return `Error fetching repo info: ${repoInfoRes.statusText}`;\n      const repoInfo = await repoInfoRes.json();\n      targetBranch = repoInfo.default_branch;\n    }\n\n    const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`, {\n      headers: { 'Authorization': `Bearer ${githubPAT}` }\n    });\n    if (!treeRes.ok) return `Error fetching tree: ${treeRes.statusText}`;\n    \n    const treeData = await treeRes.json();\n    if (treeData.truncated) return \"Warning: Tree truncated because it is too large. Results may be incomplete.\\n\\n\" + formatTree(treeData.tree);\n    return formatTree(treeData.tree);\n\n  } catch (err) {\n    return `Execution Error: ${err.message}`;\n  }\n\n  function formatTree(treeItems) {\n    const ignoreList = ['node_modules', '.git', 'package-lock.json', 'yarn.lock', 'dist', 'build', '.next', '__pycache__'];\n    const paths = treeItems\n      .map(item => item.path)\n      .filter(path => !ignoreList.some(ignore => path.includes(ignore) || path.startsWith(ignore)));\n    return \"Repository File Structure:\\n\" + paths.join('\\n');\n  }\n}",
+      "name": "get_repo_structure",
+      "openaiSpec": {
+        "name": "get_repo_structure",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "repoUrl"
+          ],
+          "properties": {
+            "branch": {
+              "type": "string",
+              "description": "Optional. The branch to fetch. Defaults to the repository's default branch if omitted."
+            },
+            "repoUrl": {
+              "type": "string",
+              "description": "The full URL to the GitHub repository (e.g., https://github.com/owner/repo)."
+            }
+          }
+        },
+        "description": "Retrieves the complete file and folder structure of a GitHub repository. Use this first to understand the architecture and identify target files."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    },
+    {
+      "id": "analyze_files_with_flash_func",
+      "code": "async function analyze_files_with_flash_lite(params, userSettings) {\n  const { repoUrl, branch, filePaths } = params;\n  const { githubPAT, geminiAPIKey, geminiModel } = userSettings;\n  \n  if (filePaths.length > 7) return \"Error: You can only analyze up to 7 files at a time to prevent context overflow.\";\n\n  try {\n    const match = repoUrl.match(/github\\.com\\/([^\\/]+)\\/([^\\/]+)/);\n    if (!match) return \"Error: Invalid GitHub URL.\";\n    const owner = match[1];\n    const repo = match[2].replace('.git', '');\n\n    let targetBranch = branch;\n    if (!targetBranch) {\n      const repoInfoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {\n        headers: { 'Authorization': `Bearer ${githubPAT}` }\n      });\n      const repoInfo = await repoInfoRes.json();\n      targetBranch = repoInfo.default_branch;\n    }\n\n    const systemPrompt = \"You are an expert architecture mapping agent. Your task is to process this raw code file and output a dense, hierarchical Natural Language (NL) representation of its structural components.\\n\\nIgnore granular syntax, variables, and standard boilerplate. Focus strictly on:\\n1. External dependencies and library orchestration.\\n2. Class and Method definitions.\\n3. The Big-Picture business logic of what each section achieves.\\n\\n**FORMATTING RULES:**\\nDo NOT use line numbers. For every class or primary function, provide a `[SEARCH ANCHOR]` containing the exact, literal string of the definition exactly as written in the code (e.g., `export const fetchUserData = async () =>` or `def process_data(self):`).\\nKeep descriptions extremely dense. Use bullet points. Prioritize data flow.\";\n\n    let finalOutput = \"### Sub-Agent Flash Lite Analysis Report\\n\\n\";\n\n    // Process sequentially to avoid Gemini free-tier rate limits\n    for (const path of filePaths) {\n      const fileRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${targetBranch}`, {\n        headers: { \n            'Authorization': `Bearer ${githubPAT}`,\n            'Accept': 'application/vnd.github.v3.raw'\n        }\n      });\n      \n      if (!fileRes.ok) {\n        finalOutput += `\\n---\\n**File:** ${path}\\n*Error fetching file: ${fileRes.statusText}*\\n`;\n        continue;\n      }\n      \n      const fileContent = await fileRes.text();\n      \n      const geminiBody = {\n        contents: [{\n          parts: [{ text: `FILE PATH: ${path}\\n\\nCODE CONTENT:\\n${fileContent}` }]\n        }],\n        systemInstruction: { parts: [{ text: systemPrompt }] }\n      };\n\n      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel || 'gemini-2.5-flash'}:generateContent?key=${geminiAPIKey}`, {\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        body: JSON.stringify(geminiBody)\n      });\n\n      if (!geminiRes.ok) {\n        finalOutput += `\\n---\\n**File:** ${path}\\n*Error from Gemini API: ${geminiRes.statusText}*\\n`;\n        continue;\n      }\n\n      const geminiData = await geminiRes.json();\n      const analysis = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || \"No content generated.\";\n      \n      finalOutput += `\\n---\\n**File:** ${path}\\n${analysis}\\n`;\n    }\n\n    return finalOutput;\n\n  } catch (err) { \n    return `Execution Error: ${err.message}`;\n  }\n}",
+      "name": "analyze_files_with_flash_lite",
+      "openaiSpec": {
+        "name": "analyze_files_with_flash_lite",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "repoUrl",
+            "filePaths"
+          ],
+          "properties": {
+            "branch": {
+              "type": "string",
+              "description": "Optional. Target branch."
+            },
+            "repoUrl": {
+              "type": "string",
+              "description": "The full URL to the GitHub repository."
+            },
+            "filePaths": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "An array of file paths to analyze (Maximum of 7 files)."
+            }
+          }
+        },
+        "description": "Delegates code analysis to Gemini Flash Lite. It fetches up to 7 files, condenses them into dense, hierarchical natural language summaries, and generates exact [SEARCH ANCHOR] strings. Use this to map out complex files and isolate features before fetching specific code."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    },
+    {
+      "id": "fetch_code_by_anchor_func",
+      "code": "async function fetch_code_by_anchor(params, userSettings) {\n  const { repoUrl, branch, filePath, anchorString, linesAfter = 50 } = params;\n  const { githubPAT, maxCharsPerLine } = userSettings;\n\n  try {\n    const match = repoUrl.match(/github\\.com\\/([^\\/]+)\\/([^\\/]+)/);\n    if (!match) return \"Error: Invalid GitHub URL.\";\n    const owner = match[1];\n    const repo = match[2].replace('.git', '');\n\n    let targetBranch = branch;\n    if (!targetBranch) {\n      const repoInfoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {\n        headers: { 'Authorization': `Bearer ${githubPAT}` }\n      });\n      const repoInfo = await repoInfoRes.json();\n      targetBranch = repoInfo.default_branch;\n    }\n\n    const fileRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${targetBranch}`, {\n      headers: { \n          'Authorization': `Bearer ${githubPAT}`,\n          'Accept': 'application/vnd.github.v3.raw'\n      }\n    });\n    \n    if (!fileRes.ok) return `Error fetching file: ${fileRes.statusText}`;\n    const fileContent = await fileRes.text();\n    const lines = fileContent.split('\\n');\n\n    let anchorIndex = -1;\n    // Try exact match first\n    anchorIndex = lines.findIndex(line => line.includes(anchorString));\n    \n    // If not found, try a fuzzy match (lowercase, stripped whitespace)\n    if (anchorIndex === -1) {\n      const cleanAnchor = anchorString.toLowerCase().replace(/\\s+/g, '');\n      anchorIndex = lines.findIndex(line => line.toLowerCase().replace(/\\s+/g, '').includes(cleanAnchor));\n    }\n\n    if (anchorIndex === -1) {\n      return `Error: Could not find the anchor string \"${anchorString}\" in ${filePath}. The Flash Lite model may have hallucinated it, or it contains irregular formatting. Please try fetching the full file (if small enough) or use a shorter, more specific sub-string as your anchor.`;\n    }\n\n    const endIndex = Math.min(lines.length, anchorIndex + linesAfter + 1);\n    const codeLines = lines.slice(anchorIndex, endIndex);\n    const maxChars = maxCharsPerLine || 1000;\n\n    // Stop models from extracting minified files or giant datasets via anchors\n    for (let i = 0; i < codeLines.length; i++) {\n      if (codeLines[i].length > maxChars) {\n        return `Request Rejected: Line ${anchorIndex + i + 1} in the requested snippet has a length of ${codeLines[i].length} characters, which exceeds your safety limit of ${maxChars} characters per line.\\n\\nThis snippet contains minified, compiled, or extremely long unformatted code. Fetching it raw would cause massive token costs and rate limit exceptions.\\n\\nRECOMMENDED ACTION: Do NOT retrieve raw syntax for this file. Use 'analyze_files_with_flash_lite' to inspect it structurally or ask the user for details.`;\n      }\n    }\n\n    const codeSnippet = codeLines.join('\\n');\n    return `### Code Snippet from ${filePath} (Lines ${anchorIndex + 1} to ${endIndex})\\n\\n\\`\\`\\`\\n${codeSnippet}\\n\\`\\`\\``;\n\n  } catch (err) {\n    return `Execution Error: ${err.message}`;\n  }\n}",
+      "name": "fetch_code_by_anchor",
+      "openaiSpec": {
+        "name": "fetch_code_by_anchor",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "repoUrl",
+            "filePath",
+            "anchorString"
+          ],
+          "properties": {
+            "branch": {
+              "type": "string"
+            },
+            "repoUrl": {
+              "type": "string"
+            },
+            "filePath": {
+              "type": "string",
+              "description": "The path to the file in the repository."
+            },
+            "linesAfter": {
+              "type": "number",
+              "description": "How many lines of code to fetch following the anchor. Defaults to 50. Max recommended is 150 to save tokens."
+            },
+            "anchorString": {
+              "type": "string",
+              "description": "The exact string or function definition to search for, usually provided as a [SEARCH ANCHOR] by the analyzer tool."
+            }
+          }
+        },
+        "description": "Retrieves a precise snippet of code using an exact string anchor. DO NOT call this unless you have already run 'analyze_files_with_flash_lite' to map the codebase and retrieve valid [SEARCH ANCHORS]. This tool enforces line-length safety limits to block minified or packed files."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    },
+    {
+      "id": "get_full_file_func",
+      "code": "async function get_full_file(params, userSettings) {\n  const { repoUrl, branch, filePath } = params;\n  const { githubPAT, maxLinesForFullFile, maxCharsPerLine } = userSettings;\n\n  try {\n    const match = repoUrl.match(/github\\.com\\/([^\\/]+)\\/([^\\/]+)/);\n    if (!match) return \"Error: Invalid GitHub URL.\";\n    const owner = match[1];\n    const repo = match[2].replace('.git', '');\n\n    let targetBranch = branch;\n    if (!targetBranch) {\n      const repoInfoRes = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {\n        headers: { 'Authorization': `Bearer ${githubPAT}` }\n      });\n      const repoInfo = await repoInfoRes.json();\n      targetBranch = repoInfo.default_branch;\n    }\n\n    const fileRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}?ref=${targetBranch}`, {\n      headers: { \n          'Authorization': `Bearer ${githubPAT}`,\n          'Accept': 'application/vnd.github.v3.raw'\n      }\n    });\n    \n    if (!fileRes.ok) return `Error fetching file: ${fileRes.statusText}`;\n    const fileContent = await fileRes.text();\n    \n    const lines = fileContent.split('\\n');\n    const maxLines = maxLinesForFullFile || 300;\n    const maxChars = maxCharsPerLine || 1000;\n\n    if (lines.length > maxLines) {\n      return `Request Rejected: The file ${filePath} contains ${lines.length} lines, which exceeds your safety limit of ${maxLines} lines.\\n\\nTo save tokens and context window, please use the 'analyze_files_with_flash_lite' tool to summarize it, or the 'fetch_code_by_anchor' tool to pull a specific section.`;\n    }\n\n    // Block files containing massive packed lines, single-line datasets, or minified code\n    for (let i = 0; i < lines.length; i++) {\n      if (lines[i].length > maxChars) {\n        return `Request Rejected: Line ${i + 1} in ${filePath} has a length of ${lines[i].length} characters, which exceeds your safety limit of ${maxChars} characters per line.\\n\\nThis typically indicates a minified file, a compiled asset, or an inline database/dataset. Fetching this directly will blow out context limits and lead to expensive API usage.\\n\\nRECOMMENDED ACTION: Do NOT read this file raw. Use 'analyze_files_with_flash_lite' to construct a structural summary, or ask the user to explain its schema/contents.`;\n      }\n    }\n\n    return `### Full File: ${filePath} (${lines.length} lines)\\n\\n\\`\\`\\`\\n${fileContent}\\n\\`\\`\\``;\n\n  } catch (err) {\n    return `Execution Error: ${err.message}`;\n  }\n}",
+      "name": "get_full_file",
+      "openaiSpec": {
+        "name": "get_full_file",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "repoUrl",
+            "filePath"
+          ],
+          "properties": {
+            "branch": {
+              "type": "string"
+            },
+            "repoUrl": {
+              "type": "string"
+            },
+            "filePath": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Fetches the complete raw contents of a small file. Protected by strict safety limits: total lines must be below 'maxLinesForFullFile' and NO line can exceed 'maxCharsPerLine'. This tool is a last resort! You MUST prioritize using 'analyze_files_with_flash_lite' first to summarize files. Direct fetches on packed, minified, or unformatted data will fail."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    }
+  ],
+  "overviewMarkdown": "# GitHub Sub-Agent Analyzer\n\nThis plugin implements a highly cost-efficient, multi-agent RAG workflow for analyzing large GitHub repositories in TypingMind.\n\nBy leveraging Gemini Flash Lite as a \"compression agent,\" you can map out massive codebases into dense, natural language summaries. This isolates the structural signal, prevents your main model from suffering from \"lost in the middle\" attention dilution, and drastically cuts down on token costs.\n\n### Critical Cost Protection Rules:\n- **Line Limits**: Direct file retrieval (`get_full_file`) is restricted to **300 lines** (customizable) to prevent accidental context overflow.\n- **Line-Length Safeguards**: Direct file retrieval and anchor-based slicing are restricted to **1,000 characters per line** (customizable via `maxCharsPerLine`). Files containing minified code, compiled assets, or massive single-line datasets are strictly blocked to prevent expensive token blowouts.\n\n### Recommended Workflow:\n1. **Get Structure:** Fetch the full file tree to identify target code.\n2. **Analyze with Flash:** Send up to 7 files to Gemini Flash Lite to map dependencies, business logic, and generate `[SEARCH ANCHORS]`.\n3. **Fetch Code by Anchor:** Use the exact anchors to pull localized chunks of syntax (e.g., 50 lines) without relying on hallucinatory line numbers.\n4. **Get Full File:** Pull entire files securely, protected by a customizable line limit (default: 300 lines) and line-length limits to prevent accidental context overflow.\n\n*(Note: Your GitHub PAT is securely stored locally in TypingMind and passed dynamically, while your Gemini Key processes the code directly via Google's API).* \n\nOnce the diagnosis and plan are complete, you can hand the architectural directives off to an implementation agent like Google Jules.",
+  "authenticationType": "AUTH_TYPE_NONE"
+}
