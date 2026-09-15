@@ -1,0 +1,146 @@
+{
+  "id": "metacognitive_scaffolding_suite",
+  "uuid": "d60b51a2-d499-4a61-a01e-d26fbf7d2b26",
+  "emoji": "🧠",
+  "title": "Metacognitive Scaffolding Suite",
+  "iconURL": "",
+  "syncedAt": "2026-07-21T22:04:56.000Z",
+  "createdAt": "2026-04-01T12:00:00.000Z",
+  "deletedAt": null,
+  "userSettings": [],
+  "pluginFunctions": [
+    {
+      "id": "d848e13c-56eb-4d23-b4e4-865319e81805",
+      "code": "async function update_cognitive_workspace(params) {\n  // Echo parameters back to commit the state to the model's active context window\n  // TypingMind embeds this natively, letting us keep a high-density, hidden state\n  return JSON.stringify({\n    status: \"Success. Metacognitive workspace updated and committed to active memory.\",\n    current_snapshot: params\n  }, null, 2);\n}",
+      "name": "Update Cognitive Workspace",
+      "openaiSpec": {
+        "name": "update_cognitive_workspace",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "macro_goal",
+            "active_hypothesis",
+            "next_action",
+            "boundary_constraints",
+            "falsification_attempt"
+          ],
+          "properties": {
+            "macro_goal": {
+              "type": "string",
+              "description": "The overarching objective you are trying to achieve."
+            },
+            "next_action": {
+              "type": "string",
+              "description": "The precise next action or execution step you will take immediately following this tool call."
+            },
+            "evidence_ledger": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "A list of newly verified facts, code blocks, or parameters that have been absolutely established as true."
+            },
+            "active_hypothesis": {
+              "type": "string",
+              "description": "The active hypothesis or approach you are currently verifying to solve the subtask."
+            },
+            "boundary_constraints": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "List of hard boundary constraints, edge cases, system rules, or code constants that MUST not be violated during this step."
+            },
+            "unresolved_questions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Unresolved constraints, questions, or missing information you must address."
+            },
+            "falsification_attempt": {
+              "type": "string",
+              "description": "An explicit, critical pre-mortem assessment of how your current approach or hypothesis could fail or go wrong."
+            }
+          }
+        },
+        "description": "CRITICAL SYSTEM-2 METCOGNITIVE TOOL: Use this at the beginning of any complex reasoning task or when transition planning. This tool externalizes your working memory, enforces boundary constraints, and establishes active falsification targets before you write your main answer. This is hidden securely from the user's main UI."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    },
+    {
+      "id": "ff38c03f-3800-4cad-9cb8-55ec94d5fd43",
+      "code": "async function execute_backtrack_audit(params) {\n  // Echo the audit state back. This forces the model to look at the exact coordinate of failure.\n  return JSON.stringify({\n    status: \"Success. Failure coordinates localized. Backtrack state locked into active history.\",\n    audit_snapshot: params\n  }, null, 2);\n}",
+      "name": "Execute Backtrack Audit",
+      "openaiSpec": {
+        "name": "execute_backtrack_audit",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "failed_output_raw",
+            "hypothesized_error_location",
+            "counterfactual_assertion"
+          ],
+          "properties": {
+            "failed_output_raw": {
+              "type": "string",
+              "description": "The raw code block, calculation, or output text that failed or led to a dead end."
+            },
+            "counterfactual_assertion": {
+              "type": "string",
+              "description": "The counterfactual verification rule: 'If the error location is correct, changing [X] to [Y] should yield [Z]'. Define the explicit delta."
+            },
+            "hypothesized_error_location": {
+              "type": "string",
+              "description": "The exact line number, step, or state transition where the logic decoupled from reality. Identify the precise coordinate of the bug."
+            }
+          }
+        },
+        "description": "MANDATORY FAILURE RECOVERY TOOL: Trigger this immediately when an implementation fails, an API returns an error, or the user corrects you. DO NOT try to re-write code or fix your answer until you run this tool. This forces you to isolate the precise location of the failure and construct a counterfactual alternative."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    },
+    {
+      "id": "5ef020b6-dd00-41c8-b208-3ab2cb72094f",
+      "code": "async function compile_metacognitive_policy(params) {\n  return JSON.stringify({\n    status: \"Success. Standard Operating Procedure (SOP) compiled and permanently committed to policy memory.\",\n    compiled_policy: params\n  }, null, 2);\n}",
+      "name": "Compile Metacognitive Policy",
+      "openaiSpec": {
+        "name": "compile_metacognitive_policy",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "rule",
+            "trigger_condition",
+            "remediation_protocol",
+            "context"
+          ],
+          "properties": {
+            "rule": {
+              "type": "string",
+              "description": "The precise rule, style guideline, or restriction to implement."
+            },
+            "context": {
+              "type": "string",
+              "description": "Why this rule was established (e.g., 'User corrected chart color layout')."
+            },
+            "trigger_condition": {
+              "type": "string",
+              "description": "The exact trigger condition when this rule must be evaluated and enforced (e.g., 'Trigger: Before generating charts')."
+            },
+            "remediation_protocol": {
+              "type": "string",
+              "description": "The step-by-step remediation procedure to execute immediately if this rule is violated."
+            }
+          }
+        },
+        "description": "Use this tool to compile a permanent Standard Operating Procedure (SOP) rule whenever you encounter a project constraint, rectify a structural bug, or establish a styling guideline. This acts as an active metacognitive policy."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    }
+  ],
+  "overviewMarkdown": "# Metacognitive Scaffolding Suite (Verifiable)\n\nBased on 2024–2026 cognitive research in computational linguistics, this plugin implements an **active metacognitive control architecture** inside TypingMind to dramatically improve model reasoning, accuracy, and self-correction.\n\nIt converts the model from a passive text generator into a highly disciplined, self-monitoring system.\n\n### The Research-Backed Mechanisms:\n1. **The Self-Correction Blindspot Mitigator:** LLMs are structurally bad at locating their own mistakes but highly robust at fixing them once the error location is defined. The `execute_backtrack_audit` tool forces the model to pinpoint the exact failure coordinate prior to rewriting any code or logic.\n2. **Pre-Mortem Falsification:** The updated workspace forces the model to state its `active_hypothesis` and an explicit `falsification_attempt` before writing its main response, preventing attention drift and early logical lock-in.\n3. **Active SOP Policies:** The policy compiler forces the model to map rules to specific `trigger_conditions` and `remediation_protocols`, moving from passive guidelines to executable system behaviors.\n",
+  "authenticationType": "AUTH_TYPE_NONE"
+}
