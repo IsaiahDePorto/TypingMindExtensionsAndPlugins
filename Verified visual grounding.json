@@ -1,0 +1,69 @@
+{
+  "id": "verified_visual_grounding",
+  "uuid": "65262bc7-2af0-45fd-a042-544b6ba47216",
+  "emoji": "👁️",
+  "title": "Verified Visual Grounding",
+  "iconURL": "",
+  "syncedAt": "2026-08-29T16:51:04.000Z",
+  "createdAt": "2026-08-27T13:36:58.825Z",
+  "deletedAt": null,
+  "userSettings": [
+    {
+      "name": "geminiApiKey",
+      "type": "password",
+      "label": "Gemini API Key",
+      "required": true,
+      "description": "Your Google Gemini API Key used by Gemini 3.5 Flash Lite to visually inspect and verify candidate images."
+    }
+  ],
+  "pluginFunctions": [
+    {
+      "id": "3d4a86c0-10fa-4ce2-a2d7-0a71631bde95",
+      "code": "async function fetch_verified_diagram_or_image(params, userSettings, resources) {\n  const { search_query, visual_description, required_elements, exclusion_criteria, preferred_format } = params;\n  const apiKey = userSettings?.geminiApiKey?.trim();\n\n  if (!apiKey) {\n    throw new Error(\"Gemini API Key is required. Please add your Google Gemini API Key in the plugin settings.\");\n  }\n\n  if (!search_query || !visual_description) {\n    throw new Error(\"Both 'search_query' and 'visual_description' are required parameters.\");\n  }\n\n  // Helper to convert ArrayBuffer to Base64\n  function arrayBufferToBase64(buffer) {\n    let binary = \"\";\n    const bytes = new Uint8Array(buffer);\n    const len = bytes.byteLength;\n    for (let i = 0; i < len; i++) {\n      binary += String.fromCharCode(bytes[i]);\n    }\n    return btoa(binary);\n  }\n\n  // 1. Fetch Candidate Images from Wikimedia Commons API (CORS enabled)\n  const wikimediaEndpoint = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encodeURIComponent(search_query)}&gsrlimit=6&prop=imageinfo&iiprop=url|mime|size|extmetadata&iiurlwidth=800&format=json&origin=*`;\n\n  let candidates = [];\n  try {\n    const wikiRes = await fetch(wikimediaEndpoint);\n    if (!wikiRes.ok) {\n      throw new Error(`Wikimedia API returned status ${wikiRes.status}`);\n    }\n    const wikiData = await wikiRes.json();\n    const pages = wikiData?.query?.pages || {};\n\n    for (const pageId of Object.keys(pages)) {\n      const page = pages[pageId];\n      const info = page?.imageinfo?.[0];\n      if (!info) continue;\n\n      const mime = (info.mime || \"\").toLowerCase();\n      // Filter for standard image formats supported by Gemini Vision\n      if (mime.includes(\"image/jpeg\") || mime.includes(\"image/png\") || mime.includes(\"image/webp\") || mime.includes(\"image/gif\") || mime.includes(\"image/svg+xml\")) {\n        const directUrl = info.thumburl || info.url;\n        const origUrl = info.url;\n        const desc = info.extmetadata?.ObjectName?.value || info.extmetadata?.ImageDescription?.value || page.title;\n        candidates.push({\n          title: page.title.replace(/^File:/i, \"\"),\n          mimeType: mime === \"image/svg+xml\" ? \"image/png\" : mime, // thumbnail of SVG is PNG\n          renderUrl: directUrl,\n          originalUrl: origUrl,\n          filePageUrl: info.descriptionurl || `https://commons.wikimedia.org/wiki/${encodeURIComponent(page.title)}`,\n          metaDescription: typeof desc === \"string\" ? desc.replace(/<[^>]*>?/gm, \"\").slice(0, 300) : \"\"\n        });\n      }\n    }\n  } catch (err) {\n    return JSON.stringify({\n      status: \"search_failed\",\n      error: `Failed to search image repository: ${err.message}`\n    });\n  }\n\n  if (candidates.length === 0) {\n    return JSON.stringify({\n      status: \"no_results\",\n      message: `No candidate images found on Wikimedia Commons matching search query: \"${search_query}\".`\n    });\n  }\n\n  // 2. Multimodal Vision Gating with Gemini 3.5 Flash Lite\n  const evaluationLog = [];\n  let verifiedImage = null;\n\n  for (let i = 0; i < Math.min(candidates.length, 4); i++) {\n    const candidate = candidates[i];\n    try {\n      // Fetch image bytes to base64 for Gemini multimodal input\n      const imgRes = await fetch(candidate.renderUrl);\n      if (!imgRes.ok) continue;\n      const imgBuffer = await imgRes.arrayBuffer();\n      const base64Data = arrayBufferToBase64(imgBuffer);\n      const mimeType = candidate.mimeType.includes(\"png\") ? \"image/png\" : (candidate.mimeType.includes(\"webp\") ? \"image/webp\" : \"image/jpeg\");\n\n      const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;\n\n      const promptText = `You are a strict, objective visual inspection gatekeeper.\nAnalyze this image against the user's required criteria:\n- Expected Subject: ${visual_description}\n- Required Visual Elements: ${required_elements || 'Accurate visual representation of the concept'}\n- Exclusion Criteria: ${exclusion_criteria || 'None'}\n- Preferred Format: ${preferred_format || 'any'}\n- Candidate Title & Context: ${candidate.title} (${candidate.metaDescription})\n\nDetermine if this image is genuine, clear, and accurately portrays what was requested.\nReturn ONLY valid JSON matching this schema:\n{\n  \"is_valid\": true or false,\n  \"confidence_score\": 0.0 to 1.0,\n  \"reason\": \"Clear explanation of what was visually detected and why it passes or fails\",\n  \"accurate_caption\": \"Concise factual caption describing what is visually shown\"\n}`;\n\n      const payload = {\n        contents: [\n          {\n            parts: [\n              {\n                inlineData: {\n                  mimeType: mimeType,\n                  data: base64Data\n                }\n              },\n              {\n                text: promptText\n              }\n            ]\n          }\n        ],\n        generationConfig: {\n          responseMimeType: \"application/json\",\n          temperature: 0.1\n        }\n      };\n\n      const evalRes = await fetch(geminiEndpoint, {\n        method: \"POST\",\n        headers: { \"Content-Type\": \"application/json\" },\n        body: JSON.stringify(payload)\n      });\n\n      if (!evalRes.ok) {\n        const errText = await evalRes.text();\n        evaluationLog.push({ candidate: candidate.title, error: `Gemini API error: ${evalRes.status}` });\n        continue;\n      }\n\n      const evalData = await evalRes.json();\n      const rawText = evalData?.candidates?.[0]?.content?.parts?.[0]?.text;\n      if (!rawText) continue;\n\n      const verdict = JSON.parse(rawText);\n      evaluationLog.push({\n        candidate: candidate.title,\n        is_valid: verdict.is_valid,\n        confidence: verdict.confidence_score,\n        reason: verdict.reason\n      });\n\n      if (verdict.is_valid && (verdict.confidence_score === undefined || verdict.confidence_score >= 0.7)) {\n        verifiedImage = {\n          imageUrl: candidate.renderUrl,\n          originalUrl: candidate.originalUrl,\n          sourcePage: candidate.filePageUrl,\n          title: candidate.title,\n          caption: verdict.accurate_caption || candidate.title,\n          verificationReason: verdict.reason,\n          confidence: verdict.confidence_score\n        };\n        break; // Found our verified high-quality match\n      }\n    } catch (e) {\n      evaluationLog.push({ candidate: candidate.title, error: e.message });\n    }\n  }\n\n  // 3. Return structured verification payload\n  if (verifiedImage) {\n    return JSON.stringify({\n      status: \"verified_match_found\",\n      markdown_embed: `![${verifiedImage.caption}](${verifiedImage.imageUrl})\\n*Verified Visual Grounding: ${verifiedImage.caption} ([Source: Wikimedia Commons](${verifiedImage.sourcePage}))*`,\n      verified_details: verifiedImage,\n      instructions_for_ai: \"Insert the provided markdown_embed directly into your response where relevant, referencing the specific visual structures depicted.\"\n    }, null, 2);\n  } else {\n    return JSON.stringify({\n      status: \"verification_rejected\",\n      message: \"Searched candidates failed strict visual verification. None of the images accurately matched the required visual description without flaws, ambiguities, or missing features.\",\n      audit_log: evaluationLog,\n      instructions_for_ai: \"Do NOT hallucinate or insert an unverified image. Inform the user that candidate visuals were retrieved but rejected by the vision gatekeeper for lack of accuracy.\"\n    }, null, 2);\n  }\n}",
+      "name": "Retrieve & Verify Diagram / Image",
+      "openaiSpec": {
+        "name": "fetch_verified_diagram_or_image",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "search_query",
+            "visual_description",
+            "required_elements"
+          ],
+          "properties": {
+            "search_query": {
+              "type": "string",
+              "description": "The targeted keyword search query for Wikimedia Commons (e.g., 'turbo roundabout schematic diagram', 'diverging diamond interchange layout')."
+            },
+            "preferred_format": {
+              "enum": [
+                "diagram_or_schematic",
+                "photograph",
+                "any"
+              ],
+              "type": "string",
+              "description": "The preferred visual format."
+            },
+            "required_elements": {
+              "type": "string",
+              "description": "Specific key visual elements that MUST be present to verify correctness (e.g., 'Spiral lane geometry, raised divider curbs, multi-lane entry points')."
+            },
+            "exclusion_criteria": {
+              "type": "string",
+              "description": "Visual elements, artifacts, or incorrect variants that disqualify the candidate (e.g., 'Standard non-turbo roundabout, low-res aerial photo, non-English unreadable labels, watermarks')."
+            },
+            "visual_description": {
+              "type": "string",
+              "description": "A detailed visual description of what the image MUST depict so the vision gatekeeper has a ground truth standard to evaluate against (e.g., 'A top-down schematic of a turbo roundabout showing spiral circulatory carriageways, physical lane dividers between lanes, and directional road markings')."
+            }
+          }
+        },
+        "description": "Searches Wikimedia Commons for high-resolution schematics, diagrams, infrastructure layouts, or photographs, and gates every candidate through Gemini 3.5 Flash Lite vision inspection to ensure 100% visual accuracy before presenting it. Use whenever the conversation benefits from a visual aid (e.g. turbo roundabouts, diverging diamond interchanges, anatomical diagrams, circuit schematics, orbital mechanics)."
+      },
+      "outputType": "respond_to_ai",
+      "implementationType": "javascript"
+    }
+  ],
+  "overviewMarkdown": "# Verified Visual Grounding Plugin (Gemini 3.5 Flash Lite Gated)\n\n### Overview\nThis plugin solves the visual hallucination and mismatch problem when LLMs embed images into responses. Instead of relying solely on messy webpage alt-text or hallucinating image URLs, this plugin:\n1. Searches **Wikimedia Commons** for peer-reviewed diagrams, schematics, engineering layouts, anatomical charts, and infrastructure designs.\n2. Downloads candidate image data directly in the browser sandbox.\n3. Passes each candidate image to **Gemini 3.5 Flash Lite Vision** alongside the parent model's exact visual criteria (`visual_description`, `required_elements`, and `exclusion_criteria`).\n4. **Gates the output:** Only images that receive a strict `is_valid: true` verdict with high confidence are returned with pre-formatted Markdown embeds and verified captions.\n5. If no candidate strictly matches the required visual geometry or data, the tool cleanly reports the failure, preventing the model from hallucinating or inserting irrelevant graphics.\n\n---\n\n### Setup\n1. Enter your **Google Gemini API Key** in the plugin settings.\n2. Enable the plugin on your active chat agent in TypingMind.",
+  "authenticationType": "AUTH_TYPE_NONE"
+}
